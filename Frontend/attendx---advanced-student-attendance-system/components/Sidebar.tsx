@@ -24,29 +24,26 @@ const Sidebar: React.FC<SidebarProps> = ({ user, logout }) => {
     { 
       name: 'Dashboard', 
       icon: LayoutDashboard, 
-      path: '/dashboard', 
+      path: user.role === UserRole.STUDENT ? '/student-portal' : '/dashboard', 
       roles: [UserRole.ADMIN, UserRole.STAFF, UserRole.STUDENT] 
     },
     { 
       name: 'Students', 
       icon: Users, 
       path: '/students', 
-      roles: [UserRole.ADMIN, UserRole.STAFF, UserRole.STUDENT],
-      studentLabel: 'Faculty Directory'
+      roles: [UserRole.ADMIN, UserRole.STAFF],
     },
     { 
       name: 'Attendance', 
       icon: CalendarCheck, 
       path: '/attendance', 
-      roles: [UserRole.STAFF, UserRole.STUDENT],
-      studentLabel: 'My Timeline',
-      studentIcon: BookMarked
+      roles: [UserRole.STAFF]
     },
     { 
       name: 'Reports', 
       icon: FileSpreadsheet, 
       path: '/reports', 
-      roles: [UserRole.STAFF, UserRole.STUDENT] 
+      roles: [UserRole.STAFF] 
     },
     { 
       name: 'Settings', 
@@ -74,9 +71,7 @@ const Sidebar: React.FC<SidebarProps> = ({ user, logout }) => {
       {/* Navigation */}
       <nav className="flex-1 mt-4 px-6 space-y-2 overflow-y-auto custom-scrollbar">
         {filteredItems.map((item) => {
-          const isStudent = user.role === UserRole.STUDENT;
-          const label = (isStudent && item.studentLabel) ? item.studentLabel : item.name;
-          const Icon = (isStudent && item.studentIcon) ? item.studentIcon : item.icon;
+          const Icon = item.icon;
 
           return (
             <NavLink
@@ -92,7 +87,7 @@ const Sidebar: React.FC<SidebarProps> = ({ user, logout }) => {
               {({ isActive }) => (
                 <>
                   <Icon className={`w-5 h-5 transition-transform duration-500 ${isActive ? 'scale-110 text-indigo-600' : 'group-hover:scale-110 group-hover:text-indigo-600'}`} />
-                  <span className="font-bold text-sm tracking-tight">{label}</span>
+                  <span className="font-bold text-sm tracking-tight">{item.name}</span>
                   {isActive && (
                     <div className="absolute right-4 w-1.5 h-1.5 bg-indigo-600 rounded-full shadow-[0_0_8px_rgba(79,70,229,0.4)]"></div>
                   )}

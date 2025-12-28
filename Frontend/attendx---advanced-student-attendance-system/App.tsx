@@ -8,6 +8,7 @@ import AttendanceMarking from './pages/AttendanceMarking';
 import Reports from './pages/Reports';
 import AdminSettings from './pages/AdminSettings';
 import TimetableManagement from './pages/TimetableManagement';
+import StudentPortal from './pages/StudentPortal';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import { User, UserRole } from './types';
@@ -126,6 +127,7 @@ const AppContent: React.FC = () => {
           <Routes>
             <Route path="/login" element={<LoginPage onLogin={login} />} />
             <Route path="/dashboard" element={<DashboardRouter />} />
+            <Route path="/student-portal" element={<StudentPortal />} />
             <Route path="/students" element={<StudentManagement userRole={user?.role} />} />
             <Route path="/attendance" element={<AttendanceMarking />} />
             <Route path="/reports" element={<Reports />} />

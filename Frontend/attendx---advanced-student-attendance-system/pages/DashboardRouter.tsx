@@ -1,9 +1,3 @@
-/**
- * Dashboard Router Component
- * Routes users to appropriate dashboard based on their role
- * Ensures role-based UI rendering survives page refresh
- */
-
 import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { UserRole } from '../types';
@@ -17,6 +11,11 @@ const DashboardRouter: React.FC = () => {
   if (!role) {
     console.warn('No role found in localStorage, redirecting to login');
     return <Navigate to="/login" replace />;
+  }
+
+  // Redirect students to their dedicated portal
+  if (role === UserRole.STUDENT) {
+    return <Navigate to="/student-portal" replace />;
   }
 
   // Pass the role to Dashboard component via window (temporary solution for existing Dashboard structure)
