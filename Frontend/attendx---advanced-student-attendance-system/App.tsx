@@ -5,6 +5,7 @@ import LoginPage from './pages/LoginPage';
 import DashboardRouter from './pages/DashboardRouter';
 import StudentManagement from './pages/StudentManagement';
 import AttendanceMarking from './pages/AttendanceMarking';
+import StaffTimetable from './pages/StaffTimetable';
 import Reports from './pages/Reports';
 import AdminSettings from './pages/AdminSettings';
 import TimetableManagement from './pages/TimetableManagement';
@@ -37,8 +38,7 @@ const AppContent: React.FC = () => {
               id: parsedUser.userId?.toString() || '1',
               name: parsedUser.name || parsedUser.username,
               email: parsedUser.email || `${parsedUser.username}@attendx.edu`,
-              role: role,
-              avatar: `https://picsum.photos/seed/${parsedUser.username}/200`
+              role: role
             };
             
             setUser(reconstructedUser);
@@ -75,8 +75,7 @@ const AppContent: React.FC = () => {
         id: parsedUser.userId?.toString() || '1',
         name: parsedUser.name || parsedUser.username,
         email: parsedUser.email || email || `${parsedUser.username}@attendx.edu`,
-        role: role,
-        avatar: `https://picsum.photos/seed/${parsedUser.username}/200`
+        role: role
       };
       setUser(authenticatedUser);
     } else {
@@ -91,8 +90,7 @@ const AppContent: React.FC = () => {
           id: 's_1',
           name: 'Alex Rivera',
           email: 'alex@attendx.edu',
-          role: UserRole.STUDENT,
-          avatar: 'https://picsum.photos/seed/alex/200'
+          role: UserRole.STUDENT
         });
       }
     }
@@ -102,10 +100,15 @@ const AppContent: React.FC = () => {
     setUser(null);
     (window as any).currentUserRole = undefined;
     (window as any).currentUser = undefined;
-    // Clear localStorage
+    // Clear ALL localStorage including admin cache
     localStorage.removeItem('jwt_token');
     localStorage.removeItem('refresh_token');
     localStorage.removeItem('user_data');
+    localStorage.removeItem('attendx_admin_master_timetable');
+    localStorage.removeItem('attendx_admin_period_timings');
+    localStorage.removeItem('attendx_admin_break_timings');
+    localStorage.removeItem('attendx_admin_curriculum');
+    console.log('Logout: All cache cleared');
   };
 
   if (!user && !isLoginPage) {
@@ -115,6 +118,26 @@ const AppContent: React.FC = () => {
   if (user && isLoginPage) {
     return <Navigate to="/dashboard" replace />;
   }
+
+  // CRITICAL: Role-based component resolver with STRICT IDENTITY CHECK
+  const getDashboardComponent = () => {
+    // HARD-SWAP: Force student dashboard for Alex Rivera or any STUDENT role
+    if (user?.name === 'Alex Rivera' || user?.role === UserRole.STUDENT) {
+      console.log('🎓 STUDENT IDENTITY CONFIRMED: Rendering StudentPortal for', user?.name);
+      return <StudentPortal key={user?.role} />; // key forces re-render on role change
+    }
+    console.log('👔 ADMIN/STAFF DETECTED: Rendering DashboardRouter for', user?.name);
+    return <DashboardRouter key={user?.role} />;
+  };
+
+  const getTimetableComponent = () => {
+    if (user?.role === UserRole.STUDENT) {
+      console.log('🎓 STUDENT DETECTED: Rendering StudentPortal (Timetable)');
+      return <StudentPortal />;
+    }
+    console.log('👔 ADMIN/STAFF DETECTED: Rendering TimetableManagement');
+    return <TimetableManagement />;
+  };
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden font-sans">
@@ -126,13 +149,14 @@ const AppContent: React.FC = () => {
         <main className="flex-1 overflow-y-auto p-4 md:p-8">
           <Routes>
             <Route path="/login" element={<LoginPage onLogin={login} />} />
-            <Route path="/dashboard" element={<DashboardRouter />} />
+            <Route path="/dashboard" element={getDashboardComponent()} />
             <Route path="/student-portal" element={<StudentPortal />} />
+            <Route path="/timetable" element={getTimetableComponent()} />
             <Route path="/students" element={<StudentManagement userRole={user?.role} />} />
             <Route path="/attendance" element={<AttendanceMarking />} />
+            <Route path="/staff/timetable" element={<StaffTimetable />} />
             <Route path="/reports" element={<Reports />} />
             <Route path="/settings" element={<AdminSettings />} />
-            <Route path="/timetable" element={<TimetableManagement />} />
             <Route path="/" element={<Navigate to={user ? "/dashboard" : "/login"} replace />} />
           </Routes>
         </main>

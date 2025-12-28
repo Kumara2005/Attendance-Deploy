@@ -18,6 +18,7 @@ import {
   Users
 } from 'lucide-react';
 import { UserRole, User } from '../types';
+import apiClient from '../services/api';
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -197,31 +198,151 @@ const AttendanceMarking: React.FC = () => {
   const isStudent = role === UserRole.STUDENT;
 
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  
+  // Cascading dropdown states
   const [selectedYear, setSelectedYear] = useState<string>('');
+  const [selectedClass, setSelectedClass] = useState<string>('');
+  const [selectedSemester, setSelectedSemester] = useState<string>('');
+  
+  // Available options for dropdowns
+  const [availableYears, setAvailableYears] = useState<number[]>([]);
+  const [availableClasses, setAvailableClasses] = useState<string[]>([]);
+  const [availableSemesters] = useState<number[]>([1, 2, 3, 4, 5, 6]);
+  
+  // Students data
+  const [students, setStudents] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  
   const [attendance, setAttendance] = useState<Record<string, 'Present' | 'Absent' | 'Late'>>({});
   const [saving, setSaving] = useState(false);
 
+  // Fetch available years when component mounts
+  useEffect(() => {
+    if (isStudent) return;
+    
+    const fetchYears = async () => {
+      try {
+        const department = currentUser?.department || 'Computer Science';
+        const response = await apiClient.get(`/teacher/years?department=${encodeURIComponent(department)}`);
+        setAvailableYears(response.data.data || [1, 2, 3]);
+      } catch (error) {
+        console.error('Error fetching years:', error);
+        setAvailableYears([1, 2, 3]); // Fallback
+      }
+    };
+    
+    fetchYears();
+  }, [isStudent, currentUser]);
+
+  // Fetch available classes when year and semester are selected
+  useEffect(() => {
+    if (isStudent || !selectedYear || !selectedSemester) return;
+    
+    const fetchClasses = async () => {
+      try {
+        const department = currentUser?.department || 'Computer Science';
+        const response = await apiClient.get(
+          `/teacher/classes?department=${encodeURIComponent(department)}&year=${selectedYear}&semester=${selectedSemester}`
+        );
+        setAvailableClasses(response.data.data || ['A', 'B', 'C']);
+      } catch (error) {
+        console.error('Error fetching classes:', error);
+        setAvailableClasses(['A', 'B', 'C']); // Fallback
+      }
+    };
+    
+    fetchClasses();
+  }, [selectedYear, selectedSemester, isStudent, currentUser]);
+
+  // Fetch students when all filters are selected
+  useEffect(() => {
+    const token = localStorage.getItem('jwt_token');
+    console.log('🔍 Fetch students effect triggered:', {
+      isStudent,
+      selectedYear,
+      selectedSemester,
+      selectedClass,
+      currentUser: currentUser?.name,
+      hasToken: !!token,
+      tokenPreview: token ? token.substring(0, 20) + '...' : 'NO TOKEN'
+    });
+    
+    if (isStudent || !selectedYear || !selectedClass || !selectedSemester) {
+      console.log('⚠️ Skipping fetch - conditions not met');
+      setStudents([]);
+      return;
+    }
+    
+    const fetchStudents = async () => {
+      setLoading(true);
+      try {
+        const department = currentUser?.department || 'Computer Science';
+        const url = `/teacher/students?department=${encodeURIComponent(department)}&year=${selectedYear}&semester=${selectedSemester}&section=${selectedClass}`;
+        const fullUrl = `http://localhost:8080/api${url}`;
+        console.log('📡 Fetching students from:', url);
+        console.log('🌐 Full URL:', fullUrl);
+        console.log('👤 Department:', department);
+        console.log('🔑 JWT Token exists:', !!token);
+        console.log('🔑 Token value:', token || 'NO TOKEN');
+        
+        // Check what headers are being sent
+        const headers = apiClient.defaults.headers.common;
+        console.log('📤 Request headers:', headers);
+        console.log('📤 Authorization header:', headers['Authorization'] || 'NO AUTH HEADER');
+        
+        const response = await apiClient.get(url);
+        console.log('✅ Students API response:', response.data);
+        console.log('✅ Response status:', response.status);
+        console.log('✅ Full response object:', response);
+        
+        const studentData = response.data.data || [];
+        console.log('📚 Student data:', studentData.length, 'students', studentData);
+        setStudents(studentData);
+        
+        // Initialize attendance to Present for all students
+        const initialAttendance: Record<string, 'Present' | 'Absent' | 'Late'> = {};
+        studentData.forEach((student: any) => {
+          initialAttendance[student.id] = 'Present';
+        });
+        setAttendance(initialAttendance);
+      } catch (error: any) {
+        console.error('❌ Error fetching students:', error);
+        console.error('❌ Error status:', error.response?.status);
+        console.error('❌ Error message:', error.message);
+        console.error('❌ Error response:', error.response?.data);
+        
+        // Fallback to mock data if API fails
+        const mockFiltered = MOCK_STUDENTS.filter(s => 
+          s.year === `Year ${selectedYear}` && s.section === selectedClass
+        );
+        console.log('📋 Using mock data:', mockFiltered.length, 'students');
+        setStudents(mockFiltered);
+        
+        const initialAttendance: Record<string, 'Present' | 'Absent' | 'Late'> = {};
+        mockFiltered.forEach((student: any) => {
+          initialAttendance[student.id] = 'Present';
+        });
+        setAttendance(initialAttendance);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchStudents();
+  }, [selectedYear, selectedClass, selectedSemester, isStudent, currentUser]);
+
+  // Load saved attendance for selected date
   useEffect(() => {
     if (isStudent) return;
     const history = JSON.parse(localStorage.getItem('attendx_history_attendance') || '{}');
     if (history[selectedDate]) {
       setAttendance(history[selectedDate]);
-    } else {
-      const defaultAttendance = Object.fromEntries(MOCK_STUDENTS.map(s => [s.id, 'Present' as const]));
-      setAttendance(defaultAttendance);
     }
   }, [selectedDate, isStudent]);
 
   const filteredStudents = useMemo(() => {
-    return MOCK_STUDENTS.filter(student => {
-      const matchesSubject = !currentUser?.subject || 
-        student.class.toLowerCase().includes(currentUser.subject.toLowerCase()) ||
-        currentUser.subject.toLowerCase().includes(student.class.toLowerCase()) ||
-        (currentUser.subject === 'Computer Science' && student.class === 'B.Sc Computer Science');
-      const matchesYear = !selectedYear || student.year === selectedYear || student.section === selectedYear;
-      return matchesSubject && matchesYear;
-    });
-  }, [selectedYear, currentUser?.subject]);
+    return students;
+  }, [students]);
 
   const handleStatusChange = (id: string, status: 'Present' | 'Absent' | 'Late') => {
     if (isStudent) return;
@@ -277,21 +398,26 @@ const AttendanceMarking: React.FC = () => {
           </div>
           
           <div className="flex flex-col sm:flex-row gap-4 items-end">
-            <div className="space-y-2 w-full sm:w-64">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Academic Year</label>
+            {/* Year Dropdown */}
+            <div className="space-y-2 w-full sm:w-48">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Year</label>
               <div className="relative group">
                 <div className="absolute inset-y-0 left-5 flex items-center pointer-events-none">
                   <CalendarDays className="w-4 h-4 text-slate-400 group-focus-within:text-indigo-600 transition-colors" />
                 </div>
                 <select 
                   value={selectedYear}
-                  onChange={(e) => setSelectedYear(e.target.value)}
+                  onChange={(e) => {
+                    setSelectedYear(e.target.value);
+                    setSelectedClass(''); // Reset class when year changes
+                    setStudents([]);
+                  }}
                   className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-12 pr-10 py-4 font-black text-[10px] text-slate-900 uppercase tracking-widest outline-none focus:ring-4 focus:ring-indigo-100 focus:border-indigo-200 transition-all appearance-none cursor-pointer shadow-sm"
                 >
-                  <option value="">Select Academic Year</option>
-                  <option value="Year 1">Year 1</option>
-                  <option value="Year 2">Year 2</option>
-                  <option value="Year 3">Year 3</option>
+                  <option value="">Select Year</option>
+                  {availableYears.map(year => (
+                    <option key={year} value={year}>Year {year}</option>
+                  ))}
                 </select>
                 <div className="absolute inset-y-0 right-5 flex items-center pointer-events-none">
                   <ChevronDown className="w-4 h-4 text-slate-400" />
@@ -299,6 +425,84 @@ const AttendanceMarking: React.FC = () => {
               </div>
             </div>
 
+            {/* Semester Dropdown */}
+            <div className="space-y-2 w-full sm:w-48">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Semester</label>
+              <div className="relative group">
+                <div className="absolute inset-y-0 left-5 flex items-center pointer-events-none">
+                  <BookOpen className="w-4 h-4 text-slate-400 group-focus-within:text-indigo-600 transition-colors" />
+                </div>
+                <select 
+                  value={selectedSemester}
+                  onChange={(e) => {
+                    setSelectedSemester(e.target.value);
+                    setSelectedClass(''); // Reset class when semester changes
+                    setStudents([]);
+                  }}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-12 pr-10 py-4 font-black text-[10px] text-slate-900 uppercase tracking-widest outline-none focus:ring-4 focus:ring-indigo-100 focus:border-indigo-200 transition-all appearance-none cursor-pointer shadow-sm"
+                  disabled={!selectedYear}
+                >
+                  <option value="">Select Semester</option>
+                  {availableSemesters.map(sem => (
+                    <option key={sem} value={sem}>Semester {sem}</option>
+                  ))}
+                </select>
+                <div className="absolute inset-y-0 right-5 flex items-center pointer-events-none">
+                  <ChevronDown className="w-4 h-4 text-slate-400" />
+                </div>
+              </div>
+            </div>
+
+            {/* Class Dropdown (Sections A, B, C) */}
+            <div className="space-y-2 w-full sm:w-48">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Class</label>
+              <div className="relative group">
+                <div className="absolute inset-y-0 left-5 flex items-center pointer-events-none">
+                  <Users className="w-4 h-4 text-slate-400 group-focus-within:text-indigo-600 transition-colors" />
+                </div>
+                <select 
+                  value={selectedClass}
+                  onChange={(e) => setSelectedClass(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-12 pr-10 py-4 font-black text-[10px] text-slate-900 uppercase tracking-widest outline-none focus:ring-4 focus:ring-indigo-100 focus:border-indigo-200 transition-all appearance-none cursor-pointer shadow-sm"
+                  disabled={!selectedYear || !selectedSemester}
+                >
+                  <option value="">Select Class</option>
+                  {availableClasses.map(cls => (
+                    <option key={cls} value={cls}>Class {cls}</option>
+                  ))}
+                </select>
+                <div className="absolute inset-y-0 right-5 flex items-center pointer-events-none">
+                  <ChevronDown className="w-4 h-4 text-slate-400" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Show message when filters not selected */}
+      {(!selectedYear || !selectedSemester || !selectedClass) && (
+        <div className="text-center py-20">
+          <Users className="w-20 h-20 text-slate-300 mx-auto mb-4" />
+          <h3 className="text-2xl font-black text-slate-400 mb-2">Select Filters</h3>
+          <p className="text-slate-400">Please select Year, Semester, and Class to view students</p>
+        </div>
+      )}
+
+      {/* Show loading state */}
+      {loading && selectedYear && selectedSemester && selectedClass && (
+        <div className="text-center py-20">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+          <p className="text-slate-500">Loading students...</p>
+        </div>
+      )}
+
+      {/* Students Registry */}
+      {!loading && filteredStudents.length > 0 && (
+        <>
+      {/* Date Picker Section */}
+      <div className="bg-white p-8 rounded-[3rem] border border-slate-100 card-shadow">
+        <div className="flex flex-col sm:flex-row gap-4 items-end">
             <div className="space-y-2 w-full sm:w-56">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Active Date</label>
               <div className="relative">
@@ -311,7 +515,6 @@ const AttendanceMarking: React.FC = () => {
               </div>
             </div>
           </div>
-        </div>
       </div>
 
       {/* Main Student List */}
@@ -407,6 +610,8 @@ const AttendanceMarking: React.FC = () => {
           </button>
         </div>
       </div>
+      </>
+      )}
     </div>
   );
 };

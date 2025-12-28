@@ -30,12 +30,58 @@ import {
 } from '../constants';
 import { UserRole, ClassOverview, Student, User } from '../types';
 import { getCurrentRole } from '../services/roles';
+import studentService from '../services/studentService';
 
 const Dashboard: React.FC = () => {
   // Use getCurrentRole from service for reliability across refreshes
   const role = getCurrentRole() || (window as any).currentUserRole || UserRole.STUDENT;
   const user = (window as any).currentUser as User;
   const navigate = useNavigate();
+  
+  // State for student dashboard data
+  const [studentData, setStudentData] = useState<Student | null>(null);
+  const [isLoadingStudent, setIsLoadingStudent] = useState(false);
+  
+  // Fetch student dashboard data if user is a student
+  useEffect(() => {
+    const fetchStudentData = async () => {
+      if (role === UserRole.STUDENT) {
+        try {
+          setIsLoadingStudent(true);
+          // Try to get roll number from user data
+          const userData = JSON.parse(localStorage.getItem('user_data') || '{}');
+          const rollNo = userData.rollNumber || 'CS-Y1-100'; // Default to Alex Rivera for testing
+          
+          console.log('Fetching dashboard for roll number:', rollNo);
+          const dashboardData = await studentService.getDashboardByRollNo(rollNo);
+          
+          // Map API response to Student interface
+          const mappedStudent: Student = {
+            id: dashboardData.identity.id,
+            rollNumber: dashboardData.identity.rollNumber,
+            name: dashboardData.identity.name,
+            class: dashboardData.identity.className,
+            department: dashboardData.identity.department,
+            section: dashboardData.identity.section,
+            year: dashboardData.identity.year,
+            attendancePercentage: Math.round(dashboardData.overallAttendancePercentage), // Round to nearest integer
+            status: dashboardData.overallAttendancePercentage >= 75 ? 'good' : 'warning'
+          };
+          
+          setStudentData(mappedStudent);
+          console.log('Student dashboard data loaded:', mappedStudent);
+        } catch (error) {
+          console.error('Error fetching student dashboard:', error);
+          // Fallback to mock data
+          setStudentData(MOCK_STUDENTS[0]);
+        } finally {
+          setIsLoadingStudent(false);
+        }
+      }
+    };
+    
+    fetchStudentData();
+  }, [role]);
   
   // Dynamic Date and Time in 12h format
   const currentDate = new Date().toLocaleDateString('en-US', { 
@@ -98,7 +144,16 @@ const Dashboard: React.FC = () => {
 
       {role === UserRole.ADMIN && <AdminDashboard />}
       {role === UserRole.STAFF && <StaffDashboard user={user} />}
-      {role === UserRole.STUDENT && <StudentDashboard student={MOCK_STUDENTS[0]} />}
+      {role === UserRole.STUDENT && (
+        isLoadingStudent ? (
+          <div className="text-center py-20">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
+            <p className="mt-4 text-slate-500">Loading your dashboard...</p>
+          </div>
+        ) : (
+          <StudentDashboard student={studentData || MOCK_STUDENTS[0]} />
+        )
+      )}
     </div>
   );
 };

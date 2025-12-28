@@ -15,13 +15,18 @@ const apiClient: AxiosInstance = axios.create({
 });
 
 /**
- * Request interceptor - Add JWT token to all requests
+ * Request interceptor - Add JWT token to requests (except teacher endpoints)
  */
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    const token = localStorage.getItem('jwt_token');
-    if (token && config.headers) {
-      config.headers.Authorization = `Bearer ${token}`;
+    // Skip authentication for teacher endpoints (they're public)
+    const isTeacherEndpoint = config.url?.includes('/teacher/');
+    
+    if (!isTeacherEndpoint) {
+      const token = localStorage.getItem('jwt_token');
+      if (token && config.headers) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
     }
     return config;
   },
@@ -36,14 +41,24 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
+    const isTeacherEndpoint = error.config?.url?.includes('/teacher/');
+    
     if (error.response?.status === 401) {
-      // Token expired or invalid
-      localStorage.removeItem('jwt_token');
-      localStorage.removeItem('refresh_token');
-      localStorage.removeItem('user_data');
-      window.location.href = '/#/login';
+      // Token expired or invalid - but don't redirect for teacher endpoints
+      if (!isTeacherEndpoint) {
+        localStorage.removeItem('jwt_token');
+        localStorage.removeItem('refresh_token');
+        localStorage.removeItem('user_data');
+        window.location.href = '/#/login';
+      } else {
+        console.warn('Authentication issue on teacher endpoint (endpoint should be public)');
+      }
     } else if (error.response?.status === 403) {
-      console.error('Access denied');
+      if (!isTeacherEndpoint) {
+        console.error('Access denied');
+      } else {
+        console.error('Access denied to teacher endpoint - this should not happen!');
+      }
     } else if (error.response?.status === 500) {
       console.error('Server error');
     }

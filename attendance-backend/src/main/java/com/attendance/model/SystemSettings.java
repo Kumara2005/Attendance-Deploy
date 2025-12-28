@@ -1,59 +1,80 @@
 package com.attendance.model;
 
-import java.time.LocalDate;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
+import java.time.LocalDateTime;
+import jakarta.persistence.*;
 
 @Entity
+@Table(name = "system_settings")
 public class SystemSettings {
 
     @Id
-    private Long id = 1L; // single row configuration
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
-    private double minAttendancePercentage;
-    private LocalDate semesterStart;
-    private LocalDate semesterEnd;
-    private int workingDaysPerWeek;
+    @Column(name = "setting_key", nullable = false, unique = true, length = 100)
+    private String settingKey;
 
+    @Column(name = "setting_value", columnDefinition = "TEXT")
+    private String settingValue;
 
+    @Column(length = 255)
+    private String description;
+
+    @Column(name = "created_at", updatable = false)
+    private LocalDateTime createdAt;
+
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
+
+    // Getters and Setters
     public Long getId() {
         return id;
     }
 
-    public double getMinAttendancePercentage() {
-        return minAttendancePercentage;
+    public void setId(Long id) {
+        this.id = id;
     }
 
-    public void setMinAttendancePercentage(double minAttendancePercentage) {
-        this.minAttendancePercentage = minAttendancePercentage;
+    public String getSettingKey() {
+        return settingKey;
     }
 
-    public LocalDate getSemesterStart() {
-        return semesterStart;
+    public void setSettingKey(String settingKey) {
+        this.settingKey = settingKey;
     }
 
-    public void setSemesterStart(LocalDate semesterStart) {
-        this.semesterStart = semesterStart;
+    public String getSettingValue() {
+        return settingValue;
     }
 
-    public LocalDate getSemesterEnd() {
-        return semesterEnd;
+    public void setSettingValue(String settingValue) {
+        this.settingValue = settingValue;
     }
 
-    public void setSemesterEnd(LocalDate semesterEnd) {
-        this.semesterEnd = semesterEnd;
+    public String getDescription() {
+        return description;
     }
 
-    public int getWorkingDaysPerWeek() {
-        return workingDaysPerWeek;
+    public void setDescription(String description) {
+        this.description = description;
     }
 
-    public void setWorkingDaysPerWeek(int workingDaysPerWeek) {
-        this.workingDaysPerWeek = workingDaysPerWeek;
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
     }
 
-	public void setId(long l) {
-		this.id=l;
-	}
-    
+    public LocalDateTime getUpdatedAt() {
+        return updatedAt;
+    }
 }

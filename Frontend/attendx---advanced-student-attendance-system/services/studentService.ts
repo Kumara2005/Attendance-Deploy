@@ -55,6 +55,14 @@ export const studentService = {
   delete: async (id: number): Promise<void> => {
     await apiClient.delete(`/students/${id}`);
   },
+
+  /**
+   * Get student dashboard by roll number (public endpoint)
+   */
+  getDashboardByRollNo: async (rollNo: string): Promise<any> => {
+    const response = await apiClient.get<ApiResponse<any>>(`/students/dashboard/${rollNo}`);
+    return extractData<any>(response);
+  },
 };
 
 export default studentService;

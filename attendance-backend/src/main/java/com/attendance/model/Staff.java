@@ -100,4 +100,29 @@ public class Staff {
     public void setActive(boolean active) {
         this.active = active;
     }
+
+    // Additional getters for DTO mapping
+    public String getEmail() {
+        return user != null ? user.getUsername() : null;
+    }
+
+    public String getSubject() {
+        return subjects != null && !subjects.isEmpty() ? subjects.get(0).getSubjectName() : null;
+    }
+
+    public String getEmployeeCode() {
+        return staffCode;
+    }
+
+    public String getEmployeeId() {
+        return staffCode;
+    }
+
+    public String getDesignation() {
+        return "Professor"; // Default designation
+    }
+
+    public String getAssignedClasses() {
+        return department; // Simplified for now
+    }
 }

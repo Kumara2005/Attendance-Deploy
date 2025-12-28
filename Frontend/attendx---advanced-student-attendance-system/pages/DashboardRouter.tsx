@@ -13,17 +13,13 @@ const DashboardRouter: React.FC = () => {
     return <Navigate to="/login" replace />;
   }
 
-  // Redirect students to their dedicated portal
-  if (role === UserRole.STUDENT) {
-    return <Navigate to="/student-portal" replace />;
-  }
+  // NOTE: Student routing is handled in App.tsx now
+  // This component should only be reached by Admin/Staff
+  console.log('DashboardRouter: Rendering for role:', role);
 
-  // Pass the role to Dashboard component via window (temporary solution for existing Dashboard structure)
-  // Set on window before rendering to ensure Dashboard reads the correct role
+  // Pass the role to Dashboard component via window
   (window as any).currentUserRole = role;
 
-  // For now, we render the unified Dashboard component which internally handles role-based rendering
-  // In future refactor, you could create separate AdminDashboard, StaffDashboard, StudentDashboard components
   return <Dashboard />;
 };
 

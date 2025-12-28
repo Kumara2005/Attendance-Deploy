@@ -96,6 +96,25 @@ CREATE TABLE staff_subjects (
 ) ENGINE=InnoDB;
 
 -- ========================================
+-- TABLE: classes
+-- Stores class segments/divisions (A, B, C, etc.)
+-- ========================================
+CREATE TABLE classes (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    class_name VARCHAR(10) NOT NULL,
+    department VARCHAR(100) NOT NULL,
+    year INT NOT NULL,
+    semester INT NOT NULL,
+    section VARCHAR(10) NOT NULL,
+    active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY unique_class (department, year, semester, section),
+    INDEX idx_dept_year (department, year),
+    INDEX idx_section (section)
+) ENGINE=InnoDB;
+
+-- ========================================
 -- TABLE: timetable_session
 -- Stores timetable sessions/periods
 -- ========================================
@@ -103,6 +122,7 @@ CREATE TABLE timetable_session (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     subject_id BIGINT NOT NULL,
     staff_id BIGINT NOT NULL,
+    class_id BIGINT,
     department VARCHAR(100) NOT NULL,
     semester INT NOT NULL,
     section VARCHAR(10),
@@ -115,8 +135,10 @@ CREATE TABLE timetable_session (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (subject_id) REFERENCES subject(id) ON DELETE CASCADE,
     FOREIGN KEY (staff_id) REFERENCES staff(id) ON DELETE CASCADE,
+    FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE SET NULL,
     INDEX idx_day_time (day_of_week, start_time),
-    INDEX idx_dept_sem_sec (department, semester, section)
+    INDEX idx_dept_sem_sec (department, semester, section),
+    INDEX idx_class (class_id)
 ) ENGINE=InnoDB;
 
 -- ========================================
@@ -185,6 +207,32 @@ INSERT INTO system_settings (setting_key, setting_value, description) VALUES
 ('SEMESTER_END_DATE', '2024-12-31', 'Current semester end date');
 
 -- ========================================
+-- INSERT CLASS SEGMENTS (A, B, C)
+-- ========================================
+INSERT INTO classes (class_name, department, year, semester, section, active) VALUES
+-- Computer Science - Year 1
+('CS1A', 'Computer Science', 1, 1, 'A', TRUE),
+('CS1B', 'Computer Science', 1, 1, 'B', TRUE),
+('CS1C', 'Computer Science', 1, 1, 'C', TRUE),
+('CS1A', 'Computer Science', 1, 2, 'A', TRUE),
+('CS1B', 'Computer Science', 1, 2, 'B', TRUE),
+('CS1C', 'Computer Science', 1, 2, 'C', TRUE),
+-- Computer Science - Year 2
+('CS2A', 'Computer Science', 2, 3, 'A', TRUE),
+('CS2B', 'Computer Science', 2, 3, 'B', TRUE),
+('CS2C', 'Computer Science', 2, 3, 'C', TRUE),
+('CS2A', 'Computer Science', 2, 4, 'A', TRUE),
+('CS2B', 'Computer Science', 2, 4, 'B', TRUE),
+('CS2C', 'Computer Science', 2, 4, 'C', TRUE),
+-- Computer Science - Year 3
+('CS3A', 'Computer Science', 3, 5, 'A', TRUE),
+('CS3B', 'Computer Science', 3, 5, 'B', TRUE),
+('CS3C', 'Computer Science', 3, 5, 'C', TRUE),
+('CS3A', 'Computer Science', 3, 6, 'A', TRUE),
+('CS3B', 'Computer Science', 3, 6, 'B', TRUE),
+('CS3C', 'Computer Science', 3, 6, 'C', TRUE);
+
+-- ========================================
 -- TABLE: refresh_tokens
 -- Stores JWT refresh tokens
 -- ========================================
@@ -207,11 +255,13 @@ CREATE TABLE refresh_tokens (
 -- Admin password: Admin@2024!Secure
 -- Staff password: Staff@2024!Secure
 -- Student password: Student@2024!Secure
+-- Alex password: Alex@2024!Student
 -- NOTE: Users MUST change password on first login
 INSERT INTO users (username, password, role, password_changed) VALUES
 ('admin', '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5GyYzWvJ6feHu', 'ROLE_ADMIN', FALSE),
 ('staff', '$2a$12$xYz9bVwXqP3kL8mN5oP6QeR7sT8uV9wXyZ0aB1cD2eF3gH4iJ5kL6', 'ROLE_STAFF', FALSE),
-('student', '$2a$12$aB2cD3eF4gH5iJ6kL7mN8oP9qR0sT1uV2wX3yZ4aB5cD6eF7gH8iJ', 'ROLE_STUDENT', FALSE);
+('student', '$2a$12$aB2cD3eF4gH5iJ6kL7mN8oP9qR0sT1uV2wX3yZ4aB5cD6eF7gH8iJ', 'ROLE_STUDENT', FALSE),
+('alex.rivera', '$2a$12$mN3oP4qR5sT6uV7wX8yZ9aB0cD1eF2gH3iJ4kL5mN6oP7qR8sT9uV', 'ROLE_STUDENT', FALSE);
 
 -- Create sample subjects
 INSERT INTO subject (code, name, department, semester, credits) VALUES
@@ -231,10 +281,112 @@ INSERT INTO staff_subjects (staff_id, subject_id) VALUES
 (1, 1), (1, 2);
 
 -- Create sample students
-INSERT INTO student (roll_no, name, department, semester, email, phone, section) VALUES
-('CS2024001', 'John Doe', 'Computer Science', 3, 'john.doe@attendx.edu', '1234567890', 'A'),
-('CS2024002', 'Jane Smith', 'Computer Science', 3, 'jane.smith@attendx.edu', '1234567891', 'A'),
-('CS2024003', 'Bob Johnson', 'Computer Science', 3, 'bob.johnson@attendx.edu', '1234567892', 'B');
+INSERT INTO student (roll_no, name, department, semester, email, phone, section, user_id) VALUES
+('CS2024001', 'John Doe', 'Computer Science', 3, 'john.doe@attendx.edu', '1234567890', 'A', NULL),
+('CS2024002', 'Jane Smith', 'Computer Science', 3, 'jane.smith@attendx.edu', '1234567891', 'A', NULL),
+('CS2024003', 'Bob Johnson', 'Computer Science', 3, 'bob.johnson@attendx.edu', '1234567892', 'B', NULL),
+('CS-Y1-100', 'Alex Rivera', 'Computer Science', 1, 'alex.rivera@attendx.edu', '1234567893', 'A', 4);
+
+-- ========================================
+-- SECTION A STUDENTS (Year 1, Semester 1)
+-- ========================================
+INSERT INTO student (roll_no, name, department, semester, email, phone, section, user_id) VALUES
+('CS-Y1-A01', 'Aarav Sharma', 'Computer Science', 1, 'aarav.sharma@attendx.edu', '9876543210', 'A', NULL),
+('CS-Y1-A02', 'Ananya Reddy', 'Computer Science', 1, 'ananya.reddy@attendx.edu', '9876543211', 'A', NULL),
+('CS-Y1-A03', 'Arjun Patel', 'Computer Science', 1, 'arjun.patel@attendx.edu', '9876543212', 'A', NULL),
+('CS-Y1-A04', 'Diya Gupta', 'Computer Science', 1, 'diya.gupta@attendx.edu', '9876543213', 'A', NULL),
+('CS-Y1-A05', 'Ishaan Kumar', 'Computer Science', 1, 'ishaan.kumar@attendx.edu', '9876543214', 'A', NULL),
+('CS-Y1-A06', 'Kavya Menon', 'Computer Science', 1, 'kavya.menon@attendx.edu', '9876543215', 'A', NULL),
+('CS-Y1-A07', 'Rohan Singh', 'Computer Science', 1, 'rohan.singh@attendx.edu', '9876543216', 'A', NULL),
+('CS-Y1-A08', 'Sanya Verma', 'Computer Science', 1, 'sanya.verma@attendx.edu', '9876543217', 'A', NULL),
+('CS-Y1-A09', 'Vihaan Joshi', 'Computer Science', 1, 'vihaan.joshi@attendx.edu', '9876543218', 'A', NULL),
+('CS-Y1-A10', 'Zara Khan', 'Computer Science', 1, 'zara.khan@attendx.edu', '9876543219', 'A', NULL);
+
+-- ========================================
+-- SECTION B STUDENTS (Year 1, Semester 1)
+-- ========================================
+INSERT INTO student (roll_no, name, department, semester, email, phone, section, user_id) VALUES
+('CS-Y1-B01', 'Aditya Nair', 'Computer Science', 1, 'aditya.nair@attendx.edu', '9876543220', 'B', NULL),
+('CS-Y1-B02', 'Bhavna Iyer', 'Computer Science', 1, 'bhavna.iyer@attendx.edu', '9876543221', 'B', NULL),
+('CS-Y1-B03', 'Chetan Rao', 'Computer Science', 1, 'chetan.rao@attendx.edu', '9876543222', 'B', NULL),
+('CS-Y1-B04', 'Divya Desai', 'Computer Science', 1, 'divya.desai@attendx.edu', '9876543223', 'B', NULL),
+('CS-Y1-B05', 'Harsh Mehta', 'Computer Science', 1, 'harsh.mehta@attendx.edu', '9876543224', 'B', NULL),
+('CS-Y1-B06', 'Kriti Bhat', 'Computer Science', 1, 'kriti.bhat@attendx.edu', '9876543225', 'B', NULL),
+('CS-Y1-B07', 'Nikhil Pillai', 'Computer Science', 1, 'nikhil.pillai@attendx.edu', '9876543226', 'B', NULL),
+('CS-Y1-B08', 'Priya Shetty', 'Computer Science', 1, 'priya.shetty@attendx.edu', '9876543227', 'B', NULL),
+('CS-Y1-B09', 'Ravi Agarwal', 'Computer Science', 1, 'ravi.agarwal@attendx.edu', '9876543228', 'B', NULL),
+('CS-Y1-B10', 'Sneha Kapoor', 'Computer Science', 1, 'sneha.kapoor@attendx.edu', '9876543229', 'B', NULL);
+
+-- ========================================
+-- SECTION C STUDENTS (Year 1, Semester 1)
+-- ========================================
+INSERT INTO student (roll_no, name, department, semester, email, phone, section, user_id) VALUES
+('CS-Y1-C01', 'Amit Shah', 'Computer Science', 1, 'amit.shah@attendx.edu', '9876543230', 'C', NULL),
+('CS-Y1-C02', 'Deepika Nanda', 'Computer Science', 1, 'deepika.nanda@attendx.edu', '9876543231', 'C', NULL),
+('CS-Y1-C03', 'Gaurav Saxena', 'Computer Science', 1, 'gaurav.saxena@attendx.edu', '9876543232', 'C', NULL),
+('CS-Y1-C04', 'Lakshmi Prasad', 'Computer Science', 1, 'lakshmi.prasad@attendx.edu', '9876543233', 'C', NULL),
+('CS-Y1-C05', 'Manish Thakur', 'Computer Science', 1, 'manish.thakur@attendx.edu', '9876543234', 'C', NULL),
+('CS-Y1-C06', 'Nisha Yadav', 'Computer Science', 1, 'nisha.yadav@attendx.edu', '9876543235', 'C', NULL),
+('CS-Y1-C07', 'Prakash Reddy', 'Computer Science', 1, 'prakash.reddy@attendx.edu', '9876543236', 'C', NULL),
+('CS-Y1-C08', 'Radhika Hegde', 'Computer Science', 1, 'radhika.hegde@attendx.edu', '9876543237', 'C', NULL),
+('CS-Y1-C09', 'Suresh Mishra', 'Computer Science', 1, 'suresh.mishra@attendx.edu', '9876543238', 'C', NULL),
+('CS-Y1-C10', 'Tanvi Kulkarni', 'Computer Science', 1, 'tanvi.kulkarni@attendx.edu', '9876543239', 'C', NULL);
+
+-- Create timetable sessions for Alex Rivera's semester (Semester 1)
+INSERT INTO timetable_session (subject_id, staff_id, day_of_week, start_time, end_time, department, semester, section, room_number, active) VALUES
+-- Monday sessions
+(1, 1, 'MONDAY', '09:00:00', '10:00:00', 'Computer Science', 1, 'A', 'CS-101', TRUE),
+(5, 1, 'MONDAY', '10:00:00', '11:00:00', 'Computer Science', 1, 'A', 'CS-102', TRUE),
+-- Tuesday sessions
+(1, 1, 'TUESDAY', '09:00:00', '10:00:00', 'Computer Science', 1, 'A', 'CS-101', TRUE),
+(5, 1, 'TUESDAY', '11:00:00', '12:00:00', 'Computer Science', 1, 'A', 'CS-103', TRUE),
+-- Wednesday sessions
+(1, 1, 'WEDNESDAY', '09:00:00', '10:00:00', 'Computer Science', 1, 'A', 'CS-101', TRUE),
+-- Thursday sessions
+(5, 1, 'THURSDAY', '10:00:00', '11:00:00', 'Computer Science', 1, 'A', 'CS-102', TRUE),
+(1, 1, 'THURSDAY', '11:00:00', '12:00:00', 'Computer Science', 1, 'A', 'CS-101', TRUE),
+-- Friday sessions
+(1, 1, 'FRIDAY', '09:00:00', '10:00:00', 'Computer Science', 1, 'A', 'CS-101', TRUE),
+(5, 1, 'FRIDAY', '10:00:00', '11:00:00', 'Computer Science', 1, 'A', 'CS-102', TRUE);
+
+-- Create attendance records for Alex Rivera (86% attendance = 43 present out of 50 sessions)
+-- Alex Rivera's student_id will be 4
+-- Sessions run from 2025-01-06 to 2025-03-28 (approximately 12 weeks)
+INSERT INTO session_attendance (session_id, student_id, attendance_date, status, marked_by) VALUES
+-- Week 1 (Jan 6-10): 5 sessions, 5 present
+(1, 4, '2025-01-06', 'PRESENT', 2), (2, 4, '2025-01-06', 'PRESENT', 2),
+(3, 4, '2025-01-07', 'PRESENT', 2), (4, 4, '2025-01-07', 'PRESENT', 2),
+(5, 4, '2025-01-08', 'PRESENT', 2), (6, 4, '2025-01-09', 'PRESENT', 2),
+(7, 4, '2025-01-09', 'PRESENT', 2), (8, 4, '2025-01-10', 'PRESENT', 2),
+(9, 4, '2025-01-10', 'PRESENT', 2),
+-- Week 2 (Jan 13-17): 5 sessions, 4 present, 1 absent
+(1, 4, '2025-01-13', 'PRESENT', 2), (2, 4, '2025-01-13', 'PRESENT', 2),
+(3, 4, '2025-01-14', 'PRESENT', 2), (4, 4, '2025-01-14', 'ABSENT', 2),
+(5, 4, '2025-01-15', 'PRESENT', 2), (6, 4, '2025-01-16', 'PRESENT', 2),
+(7, 4, '2025-01-16', 'PRESENT', 2), (8, 4, '2025-01-17', 'PRESENT', 2),
+(9, 4, '2025-01-17', 'PRESENT', 2),
+-- Week 3 (Jan 20-24): 5 sessions, 4 present, 1 absent
+(1, 4, '2025-01-20', 'PRESENT', 2), (2, 4, '2025-01-20', 'PRESENT', 2),
+(3, 4, '2025-01-21', 'PRESENT', 2), (4, 4, '2025-01-21', 'PRESENT', 2),
+(5, 4, '2025-01-22', 'ABSENT', 2), (6, 4, '2025-01-23', 'PRESENT', 2),
+(7, 4, '2025-01-23', 'PRESENT', 2), (8, 4, '2025-01-24', 'PRESENT', 2),
+(9, 4, '2025-01-24', 'PRESENT', 2),
+-- Week 4 (Jan 27-31): 5 sessions, 4 present, 1 absent
+(1, 4, '2025-01-27', 'PRESENT', 2), (2, 4, '2025-01-27', 'PRESENT', 2),
+(3, 4, '2025-01-28', 'PRESENT', 2), (4, 4, '2025-01-28', 'PRESENT', 2),
+(5, 4, '2025-01-29', 'PRESENT', 2), (6, 4, '2025-01-30', 'ABSENT', 2),
+(7, 4, '2025-01-30', 'PRESENT', 2), (8, 4, '2025-01-31', 'PRESENT', 2),
+(9, 4, '2025-01-31', 'PRESENT', 2),
+-- Week 5 (Feb 3-7): 5 sessions, 4 present, 1 absent
+(1, 4, '2025-02-03', 'PRESENT', 2), (2, 4, '2025-02-03', 'PRESENT', 2),
+(3, 4, '2025-02-04', 'PRESENT', 2), (4, 4, '2025-02-04', 'PRESENT', 2),
+(5, 4, '2025-02-05', 'PRESENT', 2), (6, 4, '2025-02-06', 'PRESENT', 2),
+(7, 4, '2025-02-06', 'ABSENT', 2), (8, 4, '2025-02-07', 'PRESENT', 2),
+(9, 4, '2025-02-07', 'PRESENT', 2),
+-- Week 6 (Feb 10-14): 5 sessions, all present
+(1, 4, '2025-02-10', 'PRESENT', 2), (2, 4, '2025-02-10', 'PRESENT', 2),
+(3, 4, '2025-02-11', 'PRESENT', 2), (4, 4, '2025-02-11', 'PRESENT', 2),
+(5, 4, '2025-02-12', 'PRESENT', 2);
 
 -- ========================================
 -- VIEWS FOR REPORTING

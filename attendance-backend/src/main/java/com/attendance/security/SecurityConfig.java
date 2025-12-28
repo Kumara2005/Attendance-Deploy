@@ -29,8 +29,14 @@ public class SecurityConfig {
             throws Exception {
 
         http.csrf(csrf -> csrf.disable())
+            .sessionManagement(session -> session
+                .sessionCreationPolicy(org.springframework.security.config.http.SessionCreationPolicy.STATELESS)
+            )
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/**").permitAll()
+                .requestMatchers("/api/students/**").permitAll() // Public access for student endpoints
+                .requestMatchers("/api/teacher/**").permitAll() // Public access for teacher endpoints
+                .requestMatchers("/api/staff/**").permitAll() // Public access for staff timetable endpoints
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .requestMatchers("/api/attendance/**")
                 .hasAnyRole("ADMIN", "STAFF")

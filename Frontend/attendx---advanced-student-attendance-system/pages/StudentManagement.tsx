@@ -124,8 +124,7 @@ const StudentManagement: React.FC<StudentManagementProps> = ({ userRole }) => {
           role: UserRole.STAFF,
           department: data.department || (deptContext ? deptContext : 'Computer Science'),
           subject: data.department || (deptContext ? deptContext : 'Computer Science'),
-          year: data.year || 'Year 1',
-          avatar: `https://picsum.photos/seed/${Date.now()}/200`
+          year: data.year || 'Year 1'
         };
         setStaff(prev => [newFaculty, ...prev]);
       }

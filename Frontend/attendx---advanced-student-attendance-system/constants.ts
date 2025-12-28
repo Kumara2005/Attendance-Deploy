@@ -6,7 +6,6 @@ export const MOCK_ADMIN: User = {
   name: 'Dr. Sarah Jenkins',
   email: 'sarah.admin@attendx.edu',
   role: UserRole.ADMIN,
-  avatar: 'https://picsum.photos/seed/sarah/200',
   department: 'Administration'
 };
 
@@ -28,8 +27,7 @@ const generateCSFaculty = (): User[] => {
       role: UserRole.STAFF,
       department: 'B.Sc Computer Science',
       subject: 'Computer Science',
-      year: year,
-      avatar: `https://picsum.photos/seed/cs_f_${i}/200`
+      year: year
     });
   });
   return faculty;
@@ -44,7 +42,6 @@ export const MOCK_STAFF: User[] = [
     role: UserRole.STAFF,
     department: 'English Literature',
     subject: 'English Literature',
-    avatar: 'https://picsum.photos/seed/alice/200',
     lastLogin: '2024-05-24 09:00 AM'
   },
   {
@@ -54,7 +51,6 @@ export const MOCK_STAFF: User[] = [
     role: UserRole.STAFF,
     department: 'Psychology',
     subject: 'Psychology',
-    avatar: 'https://picsum.photos/seed/bernard/200',
     lastLogin: '2024-05-24 09:15 AM'
   },
   {
@@ -64,7 +60,6 @@ export const MOCK_STAFF: User[] = [
     role: UserRole.STAFF,
     department: 'Sociology',
     subject: 'Sociology',
-    avatar: 'https://picsum.photos/seed/catherine/200',
     lastLogin: '2024-05-24 09:30 AM'
   },
   {
@@ -74,7 +69,6 @@ export const MOCK_STAFF: User[] = [
     role: UserRole.STAFF,
     department: 'Political Science',
     subject: 'Political Science',
-    avatar: 'https://picsum.photos/seed/david/200',
     lastLogin: '2024-05-24 09:45 AM'
   },
   {
@@ -84,7 +78,6 @@ export const MOCK_STAFF: User[] = [
     role: UserRole.STAFF,
     department: 'Fine Arts',
     subject: 'Fine Arts',
-    avatar: 'https://picsum.photos/seed/elena/200',
     lastLogin: '2024-05-24 10:00 AM'
   }
 ];

@@ -54,24 +54,35 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
     setIsLoading(true);
     setError('');
 
+    // FRONTEND-ONLY MODE: Mock authentication without backend
     try {
-      const response = await authService.login({ username, password });
+      // Simulate network delay
+      await new Promise(resolve => setTimeout(resolve, 800));
+
+      // Mock authentication - validate credentials
+      const mockUsers = {
+        'admin': { password: 'admin123', role: UserRole.ADMIN, name: 'Dr. Sarah Jenkins', email: 'admin@attendx.edu', userId: 'admin_1' },
+        'staff': { password: 'staff123', role: UserRole.STAFF, name: 'Prof. John Smith', email: 'staff@attendx.edu', userId: 'staff_1' },
+        'student': { password: 'student123', role: UserRole.STUDENT, name: 'Alex Rivera', email: 'alex.rivera@attendx.edu', userId: 'student_1' }
+      };
+
+      const user = mockUsers[username.toLowerCase() as keyof typeof mockUsers];
       
-      // authService already normalizes the role and stores it in localStorage
-      // Just map to UserRole enum for the onLogin callback
-      let mappedRole: UserRole;
-      const normalizedRole = response.role.toUpperCase();
-      
-      if (normalizedRole === 'ADMIN' || normalizedRole === 'ROLE_ADMIN') {
-        mappedRole = UserRole.ADMIN;
-      } else if (normalizedRole === 'STAFF' || normalizedRole === 'ROLE_STAFF') {
-        mappedRole = UserRole.STAFF;
-      } else {
-        mappedRole = UserRole.STUDENT;
+      if (!user || user.password !== password) {
+        throw new Error('Invalid credentials. Please try again.');
       }
-      
-      // Call onLogin for App state management, then navigate
-      onLogin(mappedRole, response.email || response.username);
+
+      // Store mock user data in localStorage with correct key that App.tsx expects
+      localStorage.setItem('user_data', JSON.stringify({
+        userId: user.userId,
+        username: username,
+        role: user.role,
+        name: user.name,
+        email: user.email
+      }));
+
+      // Call onLogin for App state management
+      onLogin(user.role, user.email);
     } catch (err: any) {
       setError(err.message || 'Login failed. Please check your credentials.');
     } finally {

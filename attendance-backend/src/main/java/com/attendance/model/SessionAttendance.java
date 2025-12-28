@@ -8,7 +8,7 @@ import jakarta.persistence.*;
 @Table(
     name = "session_attendance",
     uniqueConstraints = @UniqueConstraint(
-        columnNames = { "student_id", "timetable_session_id", "date" }
+        columnNames = { "student_id", "session_id", "attendance_date" }
     )
 )
 public class SessionAttendance {
@@ -17,7 +17,7 @@ public class SessionAttendance {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
+    @Column(name = "attendance_date", nullable = false)
     private LocalDate date;
 
     // PRESENT / ABSENT / OD
@@ -30,11 +30,16 @@ public class SessionAttendance {
     private Student student;
 
     @ManyToOne(optional = false)
-    @JoinColumn(name = "timetable_session_id")
+    @JoinColumn(name = "session_id")
     private TimetableSession timetableSession;
 
 
     public SessionAttendance() {
+    }
+
+    // Convenience method to get studentId
+    public Long getStudentId() {
+        return student != null ? student.getId() : null;
     }
 
 

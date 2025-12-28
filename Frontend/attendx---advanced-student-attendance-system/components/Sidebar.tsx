@@ -24,7 +24,7 @@ const Sidebar: React.FC<SidebarProps> = ({ user, logout }) => {
     { 
       name: 'Dashboard', 
       icon: LayoutDashboard, 
-      path: user.role === UserRole.STUDENT ? '/student-portal' : '/dashboard', 
+      path: '/dashboard', // All users go to /dashboard, App.tsx handles role-based rendering
       roles: [UserRole.ADMIN, UserRole.STAFF, UserRole.STUDENT] 
     },
     { 
@@ -34,16 +34,35 @@ const Sidebar: React.FC<SidebarProps> = ({ user, logout }) => {
       roles: [UserRole.ADMIN, UserRole.STAFF],
     },
     { 
+      name: 'Faculty Directory', 
+      icon: Users, 
+      path: '/dashboard', // Students see Faculty tab in StudentPortal
+      roles: [UserRole.STUDENT],
+      isStudentTab: true
+    },
+    { 
+      name: 'My Timeline', 
+      icon: CalendarCheck, 
+      path: '/timetable', // Student timetable view
+      roles: [UserRole.STUDENT]
+    },
+    { 
       name: 'Attendance', 
       icon: CalendarCheck, 
       path: '/attendance', 
       roles: [UserRole.STAFF]
     },
     { 
+      name: 'My Timetable', 
+      icon: BookMarked, 
+      path: '/staff/timetable', 
+      roles: [UserRole.STAFF]
+    },
+    { 
       name: 'Reports', 
       icon: FileSpreadsheet, 
       path: '/reports', 
-      roles: [UserRole.STAFF] 
+      roles: [UserRole.STAFF, UserRole.STUDENT] 
     },
     { 
       name: 'Settings', 

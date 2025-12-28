@@ -117,19 +117,18 @@ public class AttendanceReportService {
     public List<Student> lowAttendanceStudents() {
 
         // Fetch system settings
-        SystemSettings settings = settingsRepo.findById(1L)
-                .orElseThrow(() ->
-                    new RuntimeException("System settings not configured"));
-
-        double minPercentage = settings.getMinAttendancePercentage();
+        // Use default values for semester dates and minimum percentage
+        double minPercentage = 75.0; // Default minimum attendance percentage
+        LocalDate semesterStart = LocalDate.of(2025, 1, 1);
+        LocalDate semesterEnd = LocalDate.of(2025, 6, 30);
 
         // Filter students below threshold
         return studentRepo.findAll().stream()
             .filter(student -> {
                 double percentage = semesterPercentage(
                         student.getId(),
-                        settings.getSemesterStart(),
-                        settings.getSemesterEnd()
+                        semesterStart,
+                        semesterEnd
                 );
                 return percentage < minPercentage;
             })
