@@ -1,9 +1,10 @@
 # Ignore backend build output
 attendance-backend/target/
 
-# Ignore backend secrets
-attendance-backend/src/main/resources/application.properties
-attendance-backend/src/main/resources/application.yml
+# Ignore environment files with secrets
+.env
+attendance-backend/.env
+Frontend/attendx---advanced-student-attendance-system/.env
 
 # Eclipse
 .project
