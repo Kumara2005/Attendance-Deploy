@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, BookOpen, Users, ChevronDown, AlertCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Calendar, Clock, BookOpen, Users, ChevronDown, AlertCircle, ArrowRight } from 'lucide-react';
 import apiClient from '../services/api';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -21,6 +22,7 @@ const formatTo12h = (time: string) => {
 };
 
 const StaffTimetable: React.FC = () => {
+  const navigate = useNavigate();
   const currentUser = (window as any).currentUser || { department: 'Computer Science' };
   
   const [selectedDepartment] = useState(currentUser.department || 'Computer Science');
@@ -63,6 +65,21 @@ const StaffTimetable: React.FC = () => {
     return scheduleData
       .filter(session => session.dayOfWeek === day)
       .sort((a, b) => a.startTime.localeCompare(b.startTime));
+  };
+
+  // Handle click on timetable block - Navigate to attendance marking
+  const handleSessionClick = (session: TimetableSession) => {
+    console.log('🎯 Navigating to attendance for:', session);
+    navigate('/attendance', {
+      state: {
+        department: selectedDepartment,
+        year: selectedYear,
+        semester: selectedYear, // Semester maps to year (Year 1 = Semester 1)
+        section: selectedClass,  // Renamed from 'class' to 'section'
+        subjectName: session.subjectName,
+        fromTimetable: true
+      }
+    });
   };
 
   return (
@@ -200,19 +217,26 @@ const StaffTimetable: React.FC = () => {
                           {sessions.map(session => (
                             <div 
                               key={session.id}
-                              className="bg-white rounded-xl p-4 border border-slate-200 hover:border-indigo-300 transition-colors"
+                              onClick={() => handleSessionClick(session)}
+                              className="bg-white rounded-xl p-4 border-2 border-slate-200 hover:border-indigo-500 hover:shadow-lg hover:scale-[1.02] transition-all cursor-pointer group"
                             >
                               <div className="flex items-start justify-between mb-2">
                                 <span className="text-xs font-black text-indigo-600 uppercase tracking-widest">
                                   {formatTo12h(session.startTime)} - {formatTo12h(session.endTime)}
                                 </span>
+                                <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-indigo-600 group-hover:translate-x-1 transition-all" />
                               </div>
-                              <h5 className="text-sm font-black text-slate-900 mb-1">
+                              <h5 className="text-sm font-black text-slate-900 mb-1 group-hover:text-indigo-600 transition-colors">
                                 {session.subjectName}
                               </h5>
                               <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
                                 {session.classContext}
                               </p>
+                              <div className="mt-3 pt-3 border-t border-slate-100">
+                                <p className="text-[9px] font-black text-indigo-500 uppercase tracking-widest group-hover:text-indigo-600">
+                                  Click to mark attendance →
+                                </p>
+                              </div>
                             </div>
                           ))}
                         </div>

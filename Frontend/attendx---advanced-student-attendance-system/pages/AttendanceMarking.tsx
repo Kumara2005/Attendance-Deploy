@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
+import { useLocation } from 'react-router-dom';
 import { MOCK_STUDENTS } from '../constants';
 import { 
   CheckCircle2, 
@@ -193,16 +194,27 @@ const DEPARTMENT_SCHEDULES: Record<string, Record<string, Record<string, { subje
 };
 
 const AttendanceMarking: React.FC = () => {
+  const location = useLocation();
   const role = (window as any).currentUserRole || UserRole.ADMIN;
   const currentUser = (window as any).currentUser as User;
   const isStudent = role === UserRole.STUDENT;
 
+  // Check if navigated from timetable with pre-filled data
+  const navigationState = location.state as any;
+  const fromTimetable = navigationState?.fromTimetable || false;
+
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   
-  // Cascading dropdown states
-  const [selectedYear, setSelectedYear] = useState<string>('');
-  const [selectedClass, setSelectedClass] = useState<string>('');
-  const [selectedSemester, setSelectedSemester] = useState<string>('');
+  // Cascading dropdown states - Initialize from navigation if available
+  const [selectedYear, setSelectedYear] = useState<string>(
+    fromTimetable && navigationState?.year ? String(navigationState.year) : ''
+  );
+  const [selectedClass, setSelectedClass] = useState<string>(
+    fromTimetable && navigationState?.section ? navigationState.section : ''
+  );
+  const [selectedSemester, setSelectedSemester] = useState<string>(
+    fromTimetable && navigationState?.semester ? String(navigationState.semester) : ''
+  );
   
   // Available options for dropdowns
   const [availableYears, setAvailableYears] = useState<number[]>([]);
@@ -253,6 +265,20 @@ const AttendanceMarking: React.FC = () => {
     
     fetchClasses();
   }, [selectedYear, selectedSemester, isStudent, currentUser]);
+
+  // Auto-trigger student fetch when navigating from timetable with pre-filled filters
+  useEffect(() => {
+    if (fromTimetable && selectedYear && selectedSemester && selectedClass) {
+      console.log('🎯 Auto-fetching students from timetable navigation:', {
+        year: selectedYear,
+        semester: selectedSemester,
+        section: selectedClass,
+        department: currentUser?.department
+      });
+      // Student fetch will be triggered automatically by the existing useEffect
+      // that watches selectedYear, selectedClass, selectedSemester
+    }
+  }, [fromTimetable]); // Only run once on mount when coming from timetable
 
   // Fetch students when all filters are selected
   useEffect(() => {
@@ -381,6 +407,30 @@ const AttendanceMarking: React.FC = () => {
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-6 duration-700 pb-16 max-w-[1200px] mx-auto">
+      {/* Navigation Banner - Show when coming from timetable */}
+      {fromTimetable && navigationState?.subjectName && (
+        <div className="bg-gradient-to-r from-indigo-500 to-purple-600 p-6 rounded-[2rem] border-2 border-indigo-300 shadow-xl">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center">
+              <BookOpen className="w-6 h-6 text-white" />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-lg font-black text-white tracking-tight">
+                Mark Attendance for {navigationState.subjectName}
+              </h3>
+              <p className="text-xs font-black text-indigo-100 uppercase tracking-widest mt-1">
+                Year {navigationState.year} • Class {navigationState.class} • {navigationState.department}
+              </p>
+            </div>
+            <div className="px-4 py-2 bg-white/20 rounded-xl">
+              <p className="text-[10px] font-black text-white uppercase tracking-widest">
+                From Timetable
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Registry Controls */}
       <div className="p-10 rounded-[2.5rem] text-slate-900 shadow-lg relative overflow-hidden bg-white border border-slate-100">
         <div className="absolute right-[-40px] top-[-40px] w-64 h-64 bg-indigo-50 rounded-full blur-[80px]"></div>

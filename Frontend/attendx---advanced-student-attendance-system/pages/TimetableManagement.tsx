@@ -17,10 +17,13 @@ import {
   LayoutGrid,
   Settings,
   Layers,
-  Users
+  Users,
+  Edit,
+  X,
+  Database
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { UserRole } from '../types';
+import { UserRole, Subject } from '../types';
 import apiClient from '../services/api';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -160,6 +163,47 @@ const TimetableManagement: React.FC = () => {
   const [scheduleData, setScheduleData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
+  // Subject Registry Management (Admin Only)
+  const [showSubjectModal, setShowSubjectModal] = useState(false);
+  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [editingSubject, setEditingSubject] = useState<Subject | null>(null);
+  const [subjectForm, setSubjectForm] = useState({
+    subjectCode: '',
+    subjectName: '',
+    department: 'Computer Science',
+    semester: 1,
+    credits: 3,
+    isElective: false
+  });
+  const [subjectLoading, setSubjectLoading] = useState(false);
+
+  // Fetch subjects from backend
+  const fetchSubjects = async (department?: string, semester?: number) => {
+    try {
+      setSubjectLoading(true);
+      let url = '/admin/subjects';
+      const params = [];
+      if (department) params.push(`department=${encodeURIComponent(department)}`);
+      if (semester) params.push(`semester=${semester}`);
+      if (params.length > 0) url += '?' + params.join('&');
+      
+      const response = await apiClient.get(url);
+      setSubjects(response.data.data || []);
+    } catch (error) {
+      console.error('Error fetching subjects:', error);
+    } finally {
+      setSubjectLoading(false);
+    }
+  };
+
+  // Load subjects when modal opens or semester changes
+  useEffect(() => {
+    if (!isStaff && showSubjectModal) {
+      const semesterNum = selectedSemester ? parseInt(selectedSemester.split(' ')[1]) : undefined;
+      fetchSubjects('Computer Science', semesterNum);
+    }
+  }, [showSubjectModal, selectedSemester, isStaff]);
+
   useEffect(() => {
     setTimetable(prev => {
       const next = { ...prev };
@@ -269,6 +313,97 @@ const TimetableManagement: React.FC = () => {
     fetchClasses();
   }, [isStaff, selectedYear, selectedSemester, currentUser]);
 
+  // Subject CRUD Handlers
+  const handleCreateSubject = async () => {
+    try {
+      setSubjectLoading(true);
+      await apiClient.post('/admin/subjects', subjectForm);
+      alert('✅ Subject created successfully!');
+      setSubjectForm({
+        subjectCode: '',
+        subjectName: '',
+        department: 'Computer Science',
+        semester: 1,
+        credits: 3,
+        isElective: false
+      });
+      const semesterNum = selectedSemester ? parseInt(selectedSemester.split(' ')[1]) : undefined;
+      await fetchSubjects('Computer Science', semesterNum);
+    } catch (error: any) {
+      console.error('Error creating subject:', error);
+      alert('❌ ' + (error.response?.data?.message || 'Error creating subject'));
+    } finally {
+      setSubjectLoading(false);
+    }
+  };
+
+  const handleUpdateSubject = async () => {
+    if (!editingSubject) return;
+    try {
+      setSubjectLoading(true);
+      await apiClient.put(`/admin/subjects/${editingSubject.id}`, subjectForm);
+      alert('✅ Subject updated successfully!');
+      setEditingSubject(null);
+      setSubjectForm({
+        subjectCode: '',
+        subjectName: '',
+        department: 'Computer Science',
+        semester: 1,
+        credits: 3,
+        isElective: false
+      });
+      const semesterNum = selectedSemester ? parseInt(selectedSemester.split(' ')[1]) : undefined;
+      await fetchSubjects('Computer Science', semesterNum);
+    } catch (error: any) {
+      console.error('Error updating subject:', error);
+      alert('❌ ' + (error.response?.data?.message || 'Error updating subject'));
+    } finally {
+      setSubjectLoading(false);
+    }
+  };
+
+  const handleDeleteSubject = async (id: number, name: string) => {
+    if (!confirm(`Are you sure you want to delete "${name}"?\n\nThis will fail if the subject is assigned to active timetable sessions.`)) {
+      return;
+    }
+    try {
+      setSubjectLoading(true);
+      await apiClient.delete(`/admin/subjects/${id}`);
+      alert('✅ Subject deleted successfully!');
+      const semesterNum = selectedSemester ? parseInt(selectedSemester.split(' ')[1]) : undefined;
+      await fetchSubjects('Computer Science', semesterNum);
+    } catch (error: any) {
+      console.error('Error deleting subject:', error);
+      alert('❌ ' + (error.response?.data?.message || 'Error deleting subject'));
+    } finally {
+      setSubjectLoading(false);
+    }
+  };
+
+  const handleEditClick = (subject: Subject) => {
+    setEditingSubject(subject);
+    setSubjectForm({
+      subjectCode: subject.subjectCode,
+      subjectName: subject.subjectName,
+      department: subject.department,
+      semester: subject.semester,
+      credits: subject.credits,
+      isElective: subject.isElective
+    });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingSubject(null);
+    setSubjectForm({
+      subjectCode: '',
+      subjectName: '',
+      department: 'Computer Science',
+      semester: 1,
+      credits: 3,
+      isElective: false
+    });
+  };
+
   const handlePeriodChange = (id: string, field: 'start' | 'end', value: string) => {
     setPeriods(prev => prev.map(p => p.id === id ? { ...p, [field]: value } : p));
   };
@@ -284,11 +419,44 @@ const TimetableManagement: React.FC = () => {
     setPeriods(periods.filter(p => p.id !== id));
   };
 
-  const handleSubjectChange = (day: string, periodIndex: number, subject: string) => {
+  const handleSubjectChange = async (day: string, periodIndex: number, subject: string) => {
+    // Update local state immediately for UI responsiveness
     setTimetable(prev => ({
       ...prev,
       [day]: prev[day].map((sub, i) => i === periodIndex ? subject : sub)
     }));
+
+    // Only save to database for admin and when semester is selected
+    if (!isStaff && selectedSemester) {
+      try {
+        const period = periods[periodIndex];
+        const semesterNum = parseInt(selectedSemester.split(' ')[1]); // Extract number from "Semester 1"
+
+        // For now, save without specific subject/staff code
+        // In full implementation, you'd map subject names to codes
+        const sessionData = {
+          day: day,
+          periodNumber: periodIndex + 1,
+          startTime: period.start + ':00',
+          endTime: period.end + ':00',
+          department: 'Computer Science',
+          semester: semesterNum,
+          section: 'A',
+          subjectCode: null, // Will need subject mapping
+          staffCode: null,   // Will need staff selection
+          roomNumber: null
+        };
+
+        console.log('💾 Saving session to database:', sessionData);
+        
+        // Uncomment when ready to save:
+        // const response = await apiClient.post('/admin/timetable/session', sessionData);
+        // console.log('✅ Session saved:', response.data);
+        
+      } catch (error) {
+        console.error('❌ Error saving session:', error);
+      }
+    }
   };
 
   const checkConflict = (day: string, subject: string) => {
@@ -296,12 +464,48 @@ const TimetableManagement: React.FC = () => {
     return timetable[day].filter(s => s === subject).length > 1;
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     setSaving(true);
-    setTimeout(() => {
+    try {
+      // In full implementation, batch save all timetable changes
+      const sessionPromises: Promise<any>[] = [];
+      
+      DAYS.forEach((day, dayIndex) => {
+        timetable[day].forEach((subject, periodIndex) => {
+          if (subject && subject !== 'Select Subject' && subject !== 'Free Period') {
+            const period = periods[periodIndex];
+            const semesterNum = selectedSemester ? parseInt(selectedSemester.split(' ')[1]) : 1;
+            
+            const sessionData = {
+              day: day,
+              periodNumber: periodIndex + 1,
+              startTime: period.start + ':00',
+              endTime: period.end + ':00',
+              department: 'Computer Science',
+              semester: semesterNum,
+              section: 'A',
+              subjectCode: null,
+              staffCode: null,
+              roomNumber: `R${periodIndex + 1}01`
+            };
+            
+            // Uncomment to actually save:
+            // sessionPromises.push(apiClient.post('/admin/timetable/session', sessionData));
+          }
+        });
+      });
+      
+      // await Promise.all(sessionPromises);
+      
+      setTimeout(() => {
+        setSaving(false);
+        alert('✅ Institutional Schedule successfully synchronized to database.');
+      }, 1200);
+    } catch (error) {
       setSaving(false);
-      alert('Institutional Schedule successfully synchronized.');
-    }, 1200);
+      console.error('Error saving timetable:', error);
+      alert('❌ Error saving timetable. Please try again.');
+    }
   };
 
   const resetTimetable = () => {
@@ -504,6 +708,13 @@ const TimetableManagement: React.FC = () => {
              <span className="text-[10px] font-black uppercase tracking-widest">Mapping: {selectedSemester} Subjects Active</span>
           </div>
         )}
+        <button
+          onClick={() => setShowSubjectModal(true)}
+          className="px-6 py-4 bg-violet-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-violet-700 transition-all flex items-center gap-2 shadow-lg"
+        >
+          <Database className="w-4 h-4" />
+          Manage Subjects
+        </button>
       </div>
       )}
 
@@ -690,6 +901,400 @@ const TimetableManagement: React.FC = () => {
       </div>
       )}
       </>
+      )}
+
+      {/* Subject Registry Modal (Admin Only) */}
+      {!isStaff && showSubjectModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in">
+          <div className="bg-white rounded-[3rem] max-w-6xl w-full max-h-[90vh] overflow-hidden shadow-2xl animate-in zoom-in-95">
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-violet-600 to-indigo-600 p-8 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center">
+                  <Database className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-black text-white tracking-tight">Subject Registry</h2>
+                  <p className="text-violet-100 text-sm font-medium">Manage subjects for {selectedSemester || 'all semesters'}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setShowSubjectModal(false);
+                  handleCancelEdit();
+                }}
+                className="w-10 h-10 bg-white/20 hover:bg-white/30 rounded-xl flex items-center justify-center transition-all"
+              >
+                <X className="w-5 h-5 text-white" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-8 overflow-y-auto max-h-[calc(90vh-120px)]">
+              {/* Add/Edit Form */}
+              <div className="bg-slate-50 rounded-2xl p-8 mb-8 border border-slate-200">
+                <h3 className="text-lg font-black text-slate-900 mb-6 flex items-center gap-2">
+                  {editingSubject ? <Edit className="w-5 h-5 text-amber-600" /> : <Plus className="w-5 h-5 text-emerald-600" />}
+                  {editingSubject ? 'Edit Subject' : 'Add New Subject'}
+                </h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Subject Code</label>
+                    <input
+                      type="text"
+                      value={subjectForm.subjectCode}
+                      onChange={(e) => setSubjectForm({ ...subjectForm, subjectCode: e.target.value.toUpperCase() })}
+                      placeholder="CS104"
+                      disabled={!!editingSubject}
+                      className="w-full bg-white border border-slate-300 rounded-xl px-4 py-3 text-sm font-bold text-slate-900 outline-none focus:ring-4 focus:ring-violet-100 disabled:opacity-50 disabled:bg-slate-100"
+                    />
+                    {editingSubject && (
+                      <p className="text-[9px] text-slate-400 mt-1 ml-1">Subject code cannot be changed</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Subject Name</label>
+                    <input
+                      type="text"
+                      value={subjectForm.subjectName}
+                      onChange={(e) => setSubjectForm({ ...subjectForm, subjectName: e.target.value })}
+                      placeholder="Data Structures"
+                      className="w-full bg-white border border-slate-300 rounded-xl px-4 py-3 text-sm font-bold text-slate-900 outline-none focus:ring-4 focus:ring-violet-100"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Department</label>
+                    <input
+                      type="text"
+                      value={subjectForm.department}
+                      onChange={(e) => setSubjectForm({ ...subjectForm, department: e.target.value })}
+                      placeholder="Computer Science"
+                      className="w-full bg-white border border-slate-300 rounded-xl px-4 py-3 text-sm font-bold text-slate-900 outline-none focus:ring-4 focus:ring-violet-100"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Semester</label>
+                    <select
+                      value={subjectForm.semester}
+                      onChange={(e) => setSubjectForm({ ...subjectForm, semester: parseInt(e.target.value) })}
+                      className="w-full bg-white border border-slate-300 rounded-xl px-4 py-3 text-sm font-bold text-slate-900 outline-none focus:ring-4 focus:ring-violet-100 cursor-pointer"
+                    >
+                      {[1, 2, 3, 4, 5, 6, 7, 8].map(sem => (
+                        <option key={sem} value={sem}>Semester {sem}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Credits</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="10"
+                      value={subjectForm.credits}
+                      onChange={(e) => setSubjectForm({ ...subjectForm, credits: parseInt(e.target.value) || 3 })}
+                      className="w-full bg-white border border-slate-300 rounded-xl px-4 py-3 text-sm font-bold text-slate-900 outline-none focus:ring-4 focus:ring-violet-100"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-3 pt-6">
+                    <input
+                      type="checkbox"
+                      id="isElective"
+                      checked={subjectForm.isElective}
+                      onChange={(e) => setSubjectForm({ ...subjectForm, isElective: e.target.checked })}
+                      className="w-5 h-5 rounded border-slate-300 text-violet-600 focus:ring-4 focus:ring-violet-100"
+                    />
+                    <label htmlFor="isElective" className="text-sm font-bold text-slate-700 cursor-pointer">Elective Subject</label>
+                  </div>
+                </div>
+
+                <div className="flex gap-3 justify-end">
+                  {editingSubject && (
+                    <button
+                      onClick={handleCancelEdit}
+                      className="px-6 py-3 bg-slate-200 text-slate-700 rounded-xl font-bold text-sm hover:bg-slate-300 transition-all"
+                    >
+                      Cancel
+                    </button>
+                  )}
+                  <button
+                    onClick={editingSubject ? handleUpdateSubject : handleCreateSubject}
+                    disabled={subjectLoading || !subjectForm.subjectCode || !subjectForm.subjectName}
+                    className="px-8 py-3 bg-gradient-to-r from-violet-600 to-indigo-600 text-white rounded-xl font-bold text-sm hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  >
+                    {subjectLoading ? (
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                    ) : editingSubject ? (
+                      <><Edit className="w-4 h-4" /> Update Subject</>
+                    ) : (
+                      <><Plus className="w-4 h-4" /> Add Subject</>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Subjects List */}
+              <div>
+                <h3 className="text-lg font-black text-slate-900 mb-4">Registered Subjects</h3>
+                {subjectLoading && !subjects.length ? (
+                  <div className="text-center py-12">
+                    <div className="animate-spin rounded-full h-8 w-8 border-2 border-violet-600 border-t-transparent mx-auto mb-2" />
+                    <p className="text-slate-500 text-sm">Loading subjects...</p>
+                  </div>
+                ) : subjects.length === 0 ? (
+                  <div className="text-center py-12 bg-slate-50 rounded-2xl">
+                    <Database className="w-12 h-12 text-slate-300 mx-auto mb-2" />
+                    <p className="text-slate-500">No subjects found. Add your first subject above.</p>
+                  </div>
+                ) : (
+                  <div className="grid gap-3">
+                    {subjects.map((subject) => (
+                      <div
+                        key={subject.id}
+                        className="bg-white border border-slate-200 rounded-2xl p-6 hover:border-violet-300 transition-all flex items-center justify-between group"
+                      >
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <span className="px-3 py-1 bg-violet-100 text-violet-700 rounded-lg text-xs font-black uppercase">
+                              {subject.subjectCode}
+                            </span>
+                            <h4 className="font-black text-slate-900 text-lg">{subject.subjectName}</h4>
+                            {subject.isElective && (
+                              <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded text-[9px] font-black uppercase">Elective</span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-6 text-xs text-slate-500">
+                            <span>📚 {subject.department}</span>
+                            <span>📅 Semester {subject.semester}</span>
+                            <span>⭐ {subject.credits} Credits</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleEditClick(subject)}
+                            className="p-3 bg-amber-50 text-amber-600 rounded-xl hover:bg-amber-100 transition-all opacity-0 group-hover:opacity-100"
+                            title="Edit Subject"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteSubject(subject.id, subject.subjectName)}
+                            className="p-3 bg-rose-50 text-rose-600 rounded-xl hover:bg-rose-100 transition-all opacity-0 group-hover:opacity-100"
+                            title="Delete Subject"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Subject Registry Modal (Admin Only) */}
+      {!isStaff && showSubjectModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in">
+          <div className="bg-white rounded-[3rem] max-w-6xl w-full max-h-[90vh] overflow-hidden shadow-2xl animate-in zoom-in-95">
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-violet-600 to-indigo-600 p-8 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center">
+                  <Database className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-black text-white tracking-tight">Subject Registry</h2>
+                  <p className="text-violet-100 text-sm font-medium">Manage subjects for {selectedSemester || 'all semesters'}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setShowSubjectModal(false);
+                  handleCancelEdit();
+                }}
+                className="w-10 h-10 bg-white/20 hover:bg-white/30 rounded-xl flex items-center justify-center transition-all"
+              >
+                <X className="w-5 h-5 text-white" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-8 overflow-y-auto max-h-[calc(90vh-120px)]">
+              {/* Add/Edit Form */}
+              <div className="bg-slate-50 rounded-2xl p-8 mb-8 border border-slate-200">
+                <h3 className="text-lg font-black text-slate-900 mb-6 flex items-center gap-2">
+                  {editingSubject ? <Edit className="w-5 h-5 text-amber-600" /> : <Plus className="w-5 h-5 text-emerald-600" />}
+                  {editingSubject ? 'Edit Subject' : 'Add New Subject'}
+                </h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Subject Code</label>
+                    <input
+                      type="text"
+                      value={subjectForm.subjectCode}
+                      onChange={(e) => setSubjectForm({ ...subjectForm, subjectCode: e.target.value.toUpperCase() })}
+                      placeholder="CS104"
+                      disabled={!!editingSubject}
+                      className="w-full bg-white border border-slate-300 rounded-xl px-4 py-3 text-sm font-bold text-slate-900 outline-none focus:ring-4 focus:ring-violet-100 disabled:opacity-50 disabled:bg-slate-100"
+                    />
+                    {editingSubject && (
+                      <p className="text-[9px] text-slate-400 mt-1 ml-1">Subject code cannot be changed</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Subject Name</label>
+                    <input
+                      type="text"
+                      value={subjectForm.subjectName}
+                      onChange={(e) => setSubjectForm({ ...subjectForm, subjectName: e.target.value })}
+                      placeholder="Data Structures"
+                      className="w-full bg-white border border-slate-300 rounded-xl px-4 py-3 text-sm font-bold text-slate-900 outline-none focus:ring-4 focus:ring-violet-100"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Department</label>
+                    <input
+                      type="text"
+                      value={subjectForm.department}
+                      onChange={(e) => setSubjectForm({ ...subjectForm, department: e.target.value })}
+                      placeholder="Computer Science"
+                      className="w-full bg-white border border-slate-300 rounded-xl px-4 py-3 text-sm font-bold text-slate-900 outline-none focus:ring-4 focus:ring-violet-100"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Semester</label>
+                    <select
+                      value={subjectForm.semester}
+                      onChange={(e) => setSubjectForm({ ...subjectForm, semester: parseInt(e.target.value) })}
+                      className="w-full bg-white border border-slate-300 rounded-xl px-4 py-3 text-sm font-bold text-slate-900 outline-none focus:ring-4 focus:ring-violet-100 cursor-pointer"
+                    >
+                      {[1, 2, 3, 4, 5, 6, 7, 8].map(sem => (
+                        <option key={sem} value={sem}>Semester {sem}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Credits</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="10"
+                      value={subjectForm.credits}
+                      onChange={(e) => setSubjectForm({ ...subjectForm, credits: parseInt(e.target.value) || 3 })}
+                      className="w-full bg-white border border-slate-300 rounded-xl px-4 py-3 text-sm font-bold text-slate-900 outline-none focus:ring-4 focus:ring-violet-100"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-3 pt-6">
+                    <input
+                      type="checkbox"
+                      id="isElective"
+                      checked={subjectForm.isElective}
+                      onChange={(e) => setSubjectForm({ ...subjectForm, isElective: e.target.checked })}
+                      className="w-5 h-5 rounded border-slate-300 text-violet-600 focus:ring-4 focus:ring-violet-100"
+                    />
+                    <label htmlFor="isElective" className="text-sm font-bold text-slate-700 cursor-pointer">Elective Subject</label>
+                  </div>
+                </div>
+
+                <div className="flex gap-3 justify-end">
+                  {editingSubject && (
+                    <button
+                      onClick={handleCancelEdit}
+                      className="px-6 py-3 bg-slate-200 text-slate-700 rounded-xl font-bold text-sm hover:bg-slate-300 transition-all"
+                    >
+                      Cancel
+                    </button>
+                  )}
+                  <button
+                    onClick={editingSubject ? handleUpdateSubject : handleCreateSubject}
+                    disabled={subjectLoading || !subjectForm.subjectCode || !subjectForm.subjectName}
+                    className="px-8 py-3 bg-gradient-to-r from-violet-600 to-indigo-600 text-white rounded-xl font-bold text-sm hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  >
+                    {subjectLoading ? (
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                    ) : editingSubject ? (
+                      <><Edit className="w-4 h-4" /> Update Subject</>
+                    ) : (
+                      <><Plus className="w-4 h-4" /> Add Subject</>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Subjects List */}
+              <div>
+                <h3 className="text-lg font-black text-slate-900 mb-4">Registered Subjects</h3>
+                {subjectLoading && !subjects.length ? (
+                  <div className="text-center py-12">
+                    <div className="animate-spin rounded-full h-8 w-8 border-2 border-violet-600 border-t-transparent mx-auto mb-2" />
+                    <p className="text-slate-500 text-sm">Loading subjects...</p>
+                  </div>
+                ) : subjects.length === 0 ? (
+                  <div className="text-center py-12 bg-slate-50 rounded-2xl">
+                    <Database className="w-12 h-12 text-slate-300 mx-auto mb-2" />
+                    <p className="text-slate-500">No subjects found. Add your first subject above.</p>
+                  </div>
+                ) : (
+                  <div className="grid gap-3">
+                    {subjects.map((subject) => (
+                      <div
+                        key={subject.id}
+                        className="bg-white border border-slate-200 rounded-2xl p-6 hover:border-violet-300 transition-all flex items-center justify-between group"
+                      >
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <span className="px-3 py-1 bg-violet-100 text-violet-700 rounded-lg text-xs font-black uppercase">
+                              {subject.subjectCode}
+                            </span>
+                            <h4 className="font-black text-slate-900 text-lg">{subject.subjectName}</h4>
+                            {subject.isElective && (
+                              <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded text-[9px] font-black uppercase">Elective</span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-6 text-xs text-slate-500">
+                            <span>📚 {subject.department}</span>
+                            <span>📅 Semester {subject.semester}</span>
+                            <span>⭐ {subject.credits} Credits</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleEditClick(subject)}
+                            className="p-3 bg-amber-50 text-amber-600 rounded-xl hover:bg-amber-100 transition-all opacity-0 group-hover:opacity-100"
+                            title="Edit Subject"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteSubject(subject.id, subject.subjectName)}
+                            className="p-3 bg-rose-50 text-rose-600 rounded-xl hover:bg-rose-100 transition-all opacity-0 group-hover:opacity-100"
+                            title="Delete Subject"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

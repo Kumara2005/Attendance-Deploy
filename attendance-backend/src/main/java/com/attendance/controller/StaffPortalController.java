@@ -3,12 +3,15 @@ package com.attendance.controller;
 import com.attendance.dto.ApiResponse;
 import com.attendance.model.TimetableSession;
 import com.attendance.repository.TimetableSessionRepository;
+import com.attendance.repository.StaffRepository;
+import com.attendance.model.Staff;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -21,9 +24,67 @@ import java.util.stream.Collectors;
 public class StaffPortalController {
 
     private final TimetableSessionRepository timetableRepository;
+    private final StaffRepository staffRepository;
 
-    public StaffPortalController(TimetableSessionRepository timetableRepository) {
+    public StaffPortalController(TimetableSessionRepository timetableRepository,
+                                 StaffRepository staffRepository) {
         this.timetableRepository = timetableRepository;
+        this.staffRepository = staffRepository;
+    }
+
+    /**
+     * Get staff timetable filtered by staff_id (logged-in teacher's schedule only)
+     * Use staffCode parameter to identify the teacher
+     */
+    @GetMapping("/my-timetable")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getMyTimetable(
+            @RequestParam String staffCode
+    ) {
+        try {
+            // Find staff by staff code
+            Optional<Staff> staffOpt = staffRepository.findByStaffCode(staffCode);
+            
+            if (staffOpt.isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body(ApiResponse.error("Staff not found"));
+            }
+
+            Staff staff = staffOpt.get();
+            
+            // Fetch only sessions assigned to this staff member
+            List<TimetableSession> sessions = timetableRepository
+                    .findByStaffIdAndActiveTrue(staff.getId());
+
+            // Transform sessions to include details
+            List<Map<String, Object>> result = sessions.stream()
+                    .map(session -> {
+                        Map<String, Object> sessionData = new HashMap<>();
+                        sessionData.put("id", session.getId());
+                        sessionData.put("dayOfWeek", session.getDayOfWeek());
+                        sessionData.put("startTime", session.getStartTime());
+                        sessionData.put("endTime", session.getEndTime());
+                        sessionData.put("subjectName", session.getSubjectName());
+                        sessionData.put("department", session.getDepartment());
+                        sessionData.put("semester", session.getSemester());
+                        sessionData.put("section", session.getSection());
+                        sessionData.put("roomNumber", session.getRoomNumber());
+                        
+                        // Build class context: Year X Section Y - Department
+                        int year = (session.getSemester() - 1) / 2 + 1;
+                        String classContext = String.format("Year %d %s - %s", 
+                            year, session.getSection(), session.getDepartment());
+                        sessionData.put("classContext", classContext);
+                        
+                        return sessionData;
+                    })
+                    .collect(Collectors.toList());
+
+            return ResponseEntity.ok(ApiResponse.success(result));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.internalServerError()
+                    .body(ApiResponse.error("Error retrieving timetable: " + e.getMessage()));
+        }
     }
 
     /**

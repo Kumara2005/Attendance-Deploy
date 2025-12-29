@@ -44,6 +44,20 @@ export interface ClassOverview {
   trend: 'up' | 'down' | 'stable';
 }
 
+export interface Subject {
+  id: number;
+  subjectCode: string;
+  subjectName: string;
+  name?: string; // Alias for subjectName
+  code?: string; // Alias for subjectCode
+  department: string;
+  semester: number;
+  credits: number;
+  isElective: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface AuditLog {
   id: string;
   user: string;

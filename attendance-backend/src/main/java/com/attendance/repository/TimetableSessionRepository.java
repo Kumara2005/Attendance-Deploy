@@ -36,6 +36,9 @@ public interface TimetableSessionRepository
     
     List<TimetableSession> findByStaffIdAndActiveTrue(Long staffId);
     
+    // Find sessions by subject (for dependency checking)
+    List<TimetableSession> findBySubjectAndActiveTrue(com.attendance.model.Subject subject);
+    
     @Query("SELECT ts FROM TimetableSession ts WHERE ts.staff.id = :staffId " +
            "AND ts.dayOfWeek = :dayOfWeek AND ts.active = true ORDER BY ts.startTime")
     List<TimetableSession> findByFacultyIdAndDayOfWeekAndIsActiveTrue(

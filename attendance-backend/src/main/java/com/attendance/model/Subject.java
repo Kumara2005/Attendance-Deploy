@@ -27,6 +27,9 @@ public class Subject {
 	@Column(nullable = false)
 	private int credits = 3;
 
+	@Column(name = "is_elective")
+	private boolean isElective = false;
+
 	@ManyToMany(mappedBy = "subjects")
 	private List<Staff> staff;
 
@@ -93,6 +96,14 @@ public class Subject {
 
 	public void setCredits(int credits) {
 		this.credits = credits;
+	}
+
+	public boolean isElective() {
+		return isElective;
+	}
+
+	public void setElective(boolean elective) {
+		isElective = elective;
 	}
 
 	public List<Staff> getStaff() {

@@ -16,5 +16,7 @@ public interface StaffRepository extends JpaRepository<Staff, Long> {
     List<Staff> findByDepartment(String department);
     
     List<Staff> findByActiveTrue();
+    
+    List<Staff> findByDepartmentAndActive(String department, boolean active);
 }
 

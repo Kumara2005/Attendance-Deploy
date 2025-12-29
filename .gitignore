@@ -1,16 +1,155 @@
-# Ignore backend build output
-attendance-backend/target/
-
-# Ignore environment files with secrets
+# ==========================================
+# SENSITIVE DATA - NEVER COMMIT
+# ==========================================
+# Environment variables with credentials
 .env
+.env.local
+.env.*.local
 attendance-backend/.env
 Frontend/attendx---advanced-student-attendance-system/.env
+*.env
 
+# ==========================================
+# BACKEND (Spring Boot + Maven)
+# ==========================================
+# Maven build output
+attendance-backend/target/
+attendance-backend/build/
+
+# Maven wrapper jar (optional - can be committed if needed)
+.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+# Compiled class files
+*.class
+*.jar
+*.war
+*.ear
+
+# Log files
+*.log
+logs/
+attendance-backend/logs/
+
+# ==========================================
+# FRONTEND (React + Node.js)
+# ==========================================
+# Dependencies
+node_modules/
+Frontend/**/node_modules/
+
+# Build output
+dist/
+dist-ssr/
+build/
+Frontend/**/dist/
+Frontend/**/build/
+
+# Vite cache
+.vite/
+
+# npm/yarn logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Local environment
+*.local
+
+# ==========================================
+# IDEs & EDITORS
+# ==========================================
 # Eclipse
 .project
 .classpath
 .settings/
+.apt_generated
+.factorypath
+.springBeans
+.sts4-cache
 
-# OS
+# IntelliJ IDEA
+.idea/
+*.iws
+*.iml
+*.ipr
+out/
+
+# VS Code
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# NetBeans
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+# ==========================================
+# OPERATING SYSTEM
+# ==========================================
+# macOS
 .DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+
+# Windows
 Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+
+# Linux
+*~
+.directory
+.Trash-*
+
+# ==========================================
+# DATABASE
+# ==========================================
+# Database files (if using local DB)
+*.db
+*.sqlite
+*.sqlite3
+
+# SQL dumps with sensitive data
+*dump*.sql
+
+# ==========================================
+# TESTING & TEMPORARY
+# ==========================================
+# Test coverage
+coverage/
+*.lcov
+.nyc_output/
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# ==========================================
+# GIT & VERSION CONTROL
+# ==========================================
+# Git merge files
+*.orig
+*.rej
+
+# ==========================================
+# DOCUMENTATION (Optional - Keep if public)
+# ==========================================
+# Uncomment if you don't want to commit docs
+# docs/generated/
+# *.pdf
