@@ -1,22 +1,15 @@
 # ==========================================
-# SENSITIVE DATA - NEVER COMMIT
+# Monorepo .gitignore
 # ==========================================
-# Environment variables with credentials
-.env
-.env.local
-.env.*.local
-attendance-backend/.env
-Frontend/attendx---advanced-student-attendance-system/.env
-*.env
 
 # ==========================================
-# BACKEND (Spring Boot + Maven)
+# BACKEND (Java/Spring Boot)
 # ==========================================
 # Maven build output
-attendance-backend/target/
-attendance-backend/build/
+backend/target/
+backend/build/
 
-# Maven wrapper jar (optional - can be committed if needed)
+# Maven wrapper jar
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
@@ -27,27 +20,27 @@ attendance-backend/build/
 *.war
 *.ear
 
-# Log files
+# Logs
 *.log
 logs/
-attendance-backend/logs/
+backend/logs/
 
 # ==========================================
-# FRONTEND (React + Node.js)
+# FRONTEND (React/Vite)
 # ==========================================
 # Dependencies
 node_modules/
-Frontend/**/node_modules/
+frontend/node_modules/
 
 # Build output
 dist/
 dist-ssr/
 build/
-Frontend/**/dist/
-Frontend/**/build/
+frontend/dist/
+frontend/build/
 
 # Vite cache
-.vite/
+frontend/.vite/
 
 # npm/yarn logs
 npm-debug.log*
