@@ -1,0 +1,89 @@
+
+/* Global Reset & Sophisticated Typography */
+body {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  background-color: #f8fafc;
+  color: #0f172a;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom Ultra-Modern Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #e2e8f0;
+  border-radius: 20px;
+  transition: background 0.3s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #6366f1;
+}
+
+/* Glassmorphism Utilities (Light Variant) */
+.glass-light {
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+}
+
+/* Institutional Design Accents */
+.text-gradient {
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.card-shadow {
+  box-shadow: 0 20px 50px -12px rgba(15, 23, 42, 0.05),
+              0 4px 6px -4px rgba(15, 23, 42, 0.02);
+}
+
+/* Smooth Transitions */
+.transition-standard {
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Custom Selection Highlight */
+::selection {
+  background: #6366f1;
+  color: white;
+}
+
+/* Date Input Styling Enhancements - FIXED FOR VISIBILITY */
+input[type="date"] {
+  color: #0f172a !important; 
+  font-weight: 700;
+  accent-color: #4f46e5;
+  cursor: pointer;
+}
+
+/* Force the calendar icon to be visible (BLACK) */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  filter: invert(0) brightness(0); /* Force pitch black icon */
+  opacity: 1 !important;
+  transition: transform 0.2s ease;
+  padding: 4px;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator:hover {
+  transform: scale(1.2);
+}
+
+input[type="date"]::-webkit-datetime-edit {
+  padding: 0 0.5rem;
+}
+
+input[type="date"]::-webkit-datetime-edit-fields-wrapper {
+  color: #0f172a;
+}
