@@ -190,13 +190,13 @@ const AdminDashboard = () => {
 
   const filteredProgrammes = programmes.filter(p => 
     programmeFilter === 'All Programmes' || 
-    p.programmeName?.includes(programmeFilter) ||
-    p.className?.includes(programmeFilter)
+    p.name?.includes(programmeFilter) ||
+    p.department?.includes(programmeFilter)
   );
 
   const handleProgrammeClick = (programme: any) => {
     // Navigate to the Registry with the department context
-    navigate(`/students?dept=${encodeURIComponent(programme.programmeName || programme.className)}`);
+    navigate(`/students?dept=${encodeURIComponent(programme.department || programme.name)}`);
   };
 
   return (
@@ -455,10 +455,10 @@ const StudentDashboard = ({ student }: { student: Student }) => (
 );
 
 const ProgrammeCard: React.FC<{ programme: any; onClick: () => void; isAdmin?: boolean }> = ({ programme, onClick, isAdmin }) => {
-  // Handle both old (className) and new (programmeName) formats
-  const name = programme.programmeName || programme.className || '';
-  const students = programme.totalEnrollment || programme.totalStudents || 0;
-  const attendance = programme.averageAttendance || 0;
+  // Handle both old (className/totalStudents) and new (name/studentCount) formats from backend
+  const name = programme.name || programme.programmeName || programme.className || '';
+  const students = programme.studentCount || programme.totalEnrollment || programme.totalStudents || 0;
+  const attendance = programme.averageAttendance || programme.averageAttendance || 0;
   const trend = programme.trend || 'stable';
   
   return (
@@ -489,7 +489,7 @@ const ProgrammeCard: React.FC<{ programme: any; onClick: () => void; isAdmin?: b
            {isAdmin ? (
              <p className="text-4xl font-black text-slate-900 tracking-tightest leading-none mb-1">{students}</p>
            ) : (
-             <p className="text-5xl font-black text-slate-900 tracking-tightest leading-none mb-1">{attendance}%</p>
+             <p className="text-5xl font-black text-slate-900 tracking-tightest leading-none mb-1">{Math.round(attendance)}%</p>
            )}
            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{isAdmin ? 'Total Enrolled' : `${students} Enrolled`}</p>
         </div>
