@@ -1,6 +1,7 @@
 import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL as string;
+// Use relative path for dev (proxied to Render), full URL for production
+const API_BASE_URL = import.meta.env.DEV ? '/api' : (import.meta.env.VITE_API_BASE_URL as string);
 
 /**
  * Axios instance configured for the attendance management API
@@ -15,15 +16,16 @@ const apiClient: AxiosInstance = axios.create({
 });
 
 /**
- * Request interceptor - Add JWT token to requests (except teacher endpoints)
+ * Request interceptor - Add JWT token to requests (except public endpoints)
  */
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    // Skip authentication for teacher endpoints (they're public)
-    const isTeacherEndpoint = config.url?.includes('/teacher/');
+    // List of public endpoints that don't require authentication
+    const publicEndpoints = ['/auth/login', '/auth/refresh', '/teacher/'];
+    const isPublicEndpoint = publicEndpoints.some(ep => config.url?.includes(ep));
     
-    if (!isTeacherEndpoint) {
-      const token = localStorage.getItem('jwt_token');
+    if (!isPublicEndpoint) {
+      const token = localStorage.getItem('token');
       if (token && config.headers) {
         config.headers.Authorization = `Bearer ${token}`;
       }
@@ -41,26 +43,21 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
-    const isTeacherEndpoint = error.config?.url?.includes('/teacher/');
+    const publicEndpoints = ['/auth/login', '/auth/refresh', '/teacher/'];
+    const isPublicEndpoint = publicEndpoints.some(ep => error.config?.url?.includes(ep));
     
     if (error.response?.status === 401) {
-      // Token expired or invalid - but don't redirect for teacher endpoints
-      if (!isTeacherEndpoint) {
-        localStorage.removeItem('jwt_token');
-        localStorage.removeItem('refresh_token');
+      // Token expired or invalid - redirect to login
+      if (!isPublicEndpoint) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('refreshToken');
         localStorage.removeItem('user_data');
         window.location.href = '/#/login';
-      } else {
-        console.warn('Authentication issue on teacher endpoint (endpoint should be public)');
       }
     } else if (error.response?.status === 403) {
-      if (!isTeacherEndpoint) {
-        console.error('Access denied');
-      } else {
-        console.error('Access denied to teacher endpoint - this should not happen!');
-      }
+      console.error('Access Forbidden: User does not have permission for this resource');
     } else if (error.response?.status === 500) {
-      console.error('Server error');
+      console.error('Server Error: The backend service encountered an error');
     }
     return Promise.reject(error);
   }

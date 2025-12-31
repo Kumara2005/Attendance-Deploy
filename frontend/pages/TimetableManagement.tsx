@@ -28,60 +28,20 @@ import apiClient from '../services/api';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
-const SEMESTER_SUBJECTS: Record<string, string[]> = {
-  'Semester 1': [
-    'Basics of Computer Science',
-    'Digital Electronics',
-    'Computer Organization',
-    'Mathematical Structures',
-    'English / Language',
-    'Free Period'
-  ],
-  'Semester 2': [
-    'C++ Programming',
-    'Discrete Mathematics',
-    'Computer Architecture',
-    'Web Technologies Basics',
-    'Allied Mathematics / Statistics',
-    'Free Period'
-  ],
-  'Semester 3': [
-    'Data Structures',
-    'Java Programming',
-    'Operating Systems Concepts',
-    'System Analysis & Design',
-    'Software Engineering',
-    'Free Period'
-  ],
-  'Semester 4': [
-    'Database Management Systems (DBMS)',
-    'Computer Networks',
-    'Numerical Methods',
-    'System Programming',
-    'Analytical Skills',
-    'Free Period'
-  ],
-  'Semester 5': [
-    'Python Programming',
-    'Artificial Intelligence / Machine Learning',
-    'Mobile Application Development',
-    'Cloud Computing',
-    'Project Work',
-    'Free Period'
-  ],
-  'Semester 6': [
-    'Web Technology',
-    'Advanced Programming / Electives',
-    'Final Project Work',
-    'Cyber Security (Elective)',
-    'Free Period'
-  ]
-};
+// Removed SEMESTER_SUBJECTS - now loaded dynamically from database
 
 interface PeriodInterval {
   id: string;
   start: string;
   end: string;
+}
+
+interface SubjectOption {
+  id: number;
+  subjectCode: string;
+  subjectName: string;
+  semester: number;
+  isElective: boolean;
 }
 
 const formatTo12h = (time24: string) => {
@@ -154,6 +114,9 @@ const TimetableManagement: React.FC = () => {
 
   const [selectedSemester, setSelectedSemester] = useState<string>('');
   const [saving, setSaving] = useState(false);
+  const [semesterSubjects, setSemesterSubjects] = useState<SubjectOption[]>([]);
+  const [loadingSubjects, setLoadingSubjects] = useState(false);
+  const [selectedDepartment, setSelectedDepartment] = useState('Computer Science');
   
   // Teacher-specific filters
   const [selectedYear, setSelectedYear] = useState<string>('');
@@ -312,6 +275,34 @@ const TimetableManagement: React.FC = () => {
 
     fetchClasses();
   }, [isStaff, selectedYear, selectedSemester, currentUser]);
+
+  // ✨ NEW: Fetch subjects dynamically when semester is selected
+  const fetchSemesterSubjects = async (semesterNum: number) => {
+    try {
+      setLoadingSubjects(true);
+      const response = await apiClient.get(
+        `/admin/subjects?department=${encodeURIComponent(selectedDepartment)}&semester=${semesterNum}`
+      );
+      const subjectsData = response.data.data || [];
+      setSemesterSubjects(subjectsData);
+      console.log(`✅ Loaded ${subjectsData.length} subjects for Semester ${semesterNum}`);
+    } catch (error) {
+      console.error('Error fetching semester subjects:', error);
+      setSemesterSubjects([]);
+    } finally {
+      setLoadingSubjects(false);
+    }
+  };
+
+  // ✨ NEW: Watch for semester changes and load subjects
+  useEffect(() => {
+    if (!selectedSemester) {
+      setSemesterSubjects([]);
+      return;
+    }
+    const semesterNum = parseInt(selectedSemester.split(' ')[1]);
+    fetchSemesterSubjects(semesterNum);
+  }, [selectedSemester, selectedDepartment]);
 
   // Subject CRUD Handlers
   const handleCreateSubject = async () => {
@@ -694,8 +685,8 @@ const TimetableManagement: React.FC = () => {
             className="w-full bg-slate-50 border border-slate-200 rounded-[1.5rem] px-8 py-4 font-black text-sm text-slate-900 outline-none focus:ring-4 focus:ring-indigo-100 transition-all appearance-none cursor-pointer shadow-inner"
           >
             <option value="">Select Semester</option>
-            {Object.keys(SEMESTER_SUBJECTS).map(sem => (
-              <option key={sem} value={sem}>{sem}</option>
+            {[1, 2, 3, 4, 5, 6].map(sem => (
+              <option key={sem} value={`Semester ${sem}`}>Semester {sem}</option>
             ))}
           </select>
           <div className="absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
@@ -703,9 +694,11 @@ const TimetableManagement: React.FC = () => {
           </div>
         </div>
         {selectedSemester && (
-          <div className="px-6 py-4 bg-emerald-50 text-emerald-600 rounded-2xl border border-emerald-100 flex items-center gap-3 animate-in zoom-in-95">
-             <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-             <span className="text-[10px] font-black uppercase tracking-widest">Mapping: {selectedSemester} Subjects Active</span>
+          <div className={`px-6 py-4 rounded-2xl border flex items-center gap-3 animate-in zoom-in-95 ${loadingSubjects ? 'bg-blue-50 text-blue-600 border-blue-100' : 'bg-emerald-50 text-emerald-600 border-emerald-100'}`}>
+             <div className={`w-2 h-2 rounded-full ${loadingSubjects ? 'bg-blue-500 animate-pulse' : 'bg-emerald-500'}`}></div>
+             <span className="text-[10px] font-black uppercase tracking-widest">
+               {loadingSubjects ? 'Loading subjects...' : `${semesterSubjects.length} subjects loaded`}
+             </span>
           </div>
         )}
         <button
@@ -757,7 +750,8 @@ const TimetableManagement: React.FC = () => {
                   const hasConflict = checkConflict(day, subject);
                   const isPlaceholder = subject === 'Select Subject';
                   const isFree = subject === 'Free Period' || !subject;
-                  const availableSubjects = selectedSemester ? SEMESTER_SUBJECTS[selectedSemester] : [];
+                  // ✨ Use dynamically loaded subjects from database
+                  const availableSubjects = semesterSubjects.map(s => s.subjectName);
                   
                   // For teacher view, split subject and class context
                   const subjectParts = subject.split('\n');
@@ -784,27 +778,37 @@ const TimetableManagement: React.FC = () => {
                           )}
                         </div>
                       ) : (
-                        // Admin Edit View
+                        // Admin Edit View - Now with dynamic subjects
                         <div className="relative group">
-                          <select 
-                            value={subjectName}
-                            disabled={!selectedSemester}
-                            onChange={(e) => handleSubjectChange(day, idx, e.target.value)}
-                            className={`
-                              w-full bg-slate-50/80 border rounded-[1.8rem] px-6 py-7 text-sm font-black outline-none focus:ring-8 focus:ring-indigo-100 focus:bg-white focus:border-indigo-400 transition-all appearance-none cursor-pointer shadow-sm disabled:opacity-50 disabled:cursor-not-allowed
-                              ${isPlaceholder ? 'text-indigo-400/60 border-slate-200' : hasConflict ? 'text-amber-900 border-amber-400 bg-white' : 'text-slate-900 border-indigo-100 bg-white'}
-                            `}
-                          >
-                            <option value="Select Subject" className="text-slate-400 bg-white font-bold">
-                              {selectedSemester ? 'Select Subject' : 'Select Semester First'}
-                            </option>
-                            {availableSubjects.map(s => (
-                              <option key={s} value={s} className="text-slate-900 font-bold bg-white py-4">{s}</option>
-                            ))}
-                          </select>
-                          <div className="absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 group-hover:text-indigo-600 transition-colors">
-                            <ChevronDown className="w-4 h-4" />
-                          </div>
+                          {loadingSubjects ? (
+                            <div className="w-full bg-slate-50/80 border border-slate-200 rounded-[1.8rem] px-6 py-7 text-sm font-black text-slate-400 cursor-not-allowed flex items-center justify-center gap-2">
+                              <div className="w-3 h-3 bg-indigo-600 rounded-full animate-pulse"></div>
+                              Loading subjects...
+                            </div>
+                          ) : (
+                            <>
+                              <select 
+                                value={subjectName}
+                                disabled={!selectedSemester}
+                                onChange={(e) => handleSubjectChange(day, idx, e.target.value)}
+                                className={`
+                                  w-full bg-slate-50/80 border rounded-[1.8rem] px-6 py-7 text-sm font-black outline-none focus:ring-8 focus:ring-indigo-100 focus:bg-white focus:border-indigo-400 transition-all appearance-none cursor-pointer shadow-sm disabled:opacity-50 disabled:cursor-not-allowed
+                                  ${isPlaceholder ? 'text-indigo-400/60 border-slate-200' : hasConflict ? 'text-amber-900 border-amber-400 bg-white' : 'text-slate-900 border-indigo-100 bg-white'}
+                                `}
+                              >
+                                <option value="Select Subject" className="text-slate-400 bg-white font-bold">
+                                  {selectedSemester ? `Select Subject (${availableSubjects.length} available)` : 'Select Semester First'}
+                                </option>
+                                {availableSubjects.map(s => (
+                                  <option key={s} value={s} className="text-slate-900 font-bold bg-white py-4">{s}</option>
+                                ))}
+                                <option value="Free Period" className="text-slate-600 font-bold bg-slate-50 py-4">-- Free Period --</option>
+                              </select>
+                              <div className="absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 group-hover:text-indigo-600 transition-colors">
+                                <ChevronDown className="w-4 h-4" />
+                              </div>
+                            </>
+                          )}
                         </div>
                       )}
                       
