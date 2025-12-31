@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { HashRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import LoginPage from './pages/LoginPage';
@@ -13,11 +12,12 @@ import StudentPortal from './pages/StudentPortal';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import { User, UserRole } from './types';
-import { MOCK_ADMIN, MOCK_STAFF } from './constants';
 import { getCurrentRole } from './services/roles';
+import { authService } from './services/authService';
 
 const AppContent: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const location = useLocation();
   const isLoginPage = location.pathname === '/login';
 
@@ -26,7 +26,7 @@ const AppContent: React.FC = () => {
     const initializeAuth = () => {
       try {
         const userData = localStorage.getItem('user_data');
-        const token = localStorage.getItem('jwt_token');
+        const token = localStorage.getItem('token');
         
         if (userData && token) {
           const parsedUser = JSON.parse(userData);
@@ -49,9 +49,9 @@ const AppContent: React.FC = () => {
       } catch (error) {
         console.error('Error initializing auth:', error);
         // Clear invalid data
-        localStorage.removeItem('user_data');
-        localStorage.removeItem('jwt_token');
-        localStorage.removeItem('refresh_token');
+        authService.logout();
+      } finally {
+        setIsLoading(false);
       }
     };
 
@@ -65,7 +65,7 @@ const AppContent: React.FC = () => {
     }
   }, [user]);
 
-  const login = (role: UserRole, email?: string) => {
+  const handleLogin = (role: UserRole) => {
     // Get the actual user data from localStorage (already stored by authService)
     const userData = localStorage.getItem('user_data');
     
@@ -74,42 +74,35 @@ const AppContent: React.FC = () => {
       const authenticatedUser: User = {
         id: parsedUser.userId?.toString() || '1',
         name: parsedUser.name || parsedUser.username,
-        email: parsedUser.email || email || `${parsedUser.username}@attendx.edu`,
+        email: parsedUser.email || `${parsedUser.username}@attendx.edu`,
         role: role
       };
       setUser(authenticatedUser);
-    } else {
-      // Fallback to mock data if localStorage is not available (shouldn't happen)
-      if (role === UserRole.ADMIN) {
-        setUser(MOCK_ADMIN);
-      } else if (role === UserRole.STAFF) {
-        const staffUser = MOCK_STAFF.find(s => s.email === email) || MOCK_STAFF[0];
-        setUser(staffUser);
-      } else {
-        setUser({ 
-          id: 's_1',
-          name: 'Alex Rivera',
-          email: 'alex@attendx.edu',
-          role: UserRole.STUDENT
-        });
-      }
     }
   };
 
-  const logout = () => {
+  const handleLogout = () => {
     setUser(null);
+    authService.logout();
     (window as any).currentUserRole = undefined;
     (window as any).currentUser = undefined;
-    // Clear ALL localStorage including admin cache
-    localStorage.removeItem('jwt_token');
-    localStorage.removeItem('refresh_token');
-    localStorage.removeItem('user_data');
+    // Clear any cached data
     localStorage.removeItem('attendx_admin_master_timetable');
     localStorage.removeItem('attendx_admin_period_timings');
     localStorage.removeItem('attendx_admin_break_timings');
     localStorage.removeItem('attendx_admin_curriculum');
-    console.log('Logout: All cache cleared');
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-slate-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!user && !isLoginPage) {
     return <Navigate to="/login" replace />;
@@ -119,36 +112,31 @@ const AppContent: React.FC = () => {
     return <Navigate to="/dashboard" replace />;
   }
 
-  // CRITICAL: Role-based component resolver with STRICT IDENTITY CHECK
+  // Role-based component resolver
   const getDashboardComponent = () => {
-    // HARD-SWAP: Force student dashboard for Alex Rivera or any STUDENT role
-    if (user?.name === 'Alex Rivera' || user?.role === UserRole.STUDENT) {
-      console.log('🎓 STUDENT IDENTITY CONFIRMED: Rendering StudentPortal for', user?.name);
-      return <StudentPortal key={user?.role} />; // key forces re-render on role change
+    if (user?.role === UserRole.STUDENT) {
+      return <StudentPortal key={user?.role} />;
     }
-    console.log('👔 ADMIN/STAFF DETECTED: Rendering DashboardRouter for', user?.name);
     return <DashboardRouter key={user?.role} />;
   };
 
   const getTimetableComponent = () => {
     if (user?.role === UserRole.STUDENT) {
-      console.log('🎓 STUDENT DETECTED: Rendering StudentPortal (Timetable)');
       return <StudentPortal />;
     }
-    console.log('👔 ADMIN/STAFF DETECTED: Rendering TimetableManagement');
     return <TimetableManagement />;
   };
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden font-sans">
-      {!isLoginPage && user && <Sidebar user={user} logout={logout} />}
+      {!isLoginPage && user && <Sidebar user={user} logout={handleLogout} />}
       
       <div className="flex-1 flex flex-col overflow-hidden relative">
         {!isLoginPage && user && <Header user={user} />}
         
         <main className="flex-1 overflow-y-auto p-4 md:p-8">
           <Routes>
-            <Route path="/login" element={<LoginPage onLogin={login} />} />
+            <Route path="/login" element={<LoginPage onLogin={handleLogin} />} />
             <Route path="/dashboard" element={getDashboardComponent()} />
             <Route path="/student-portal" element={<StudentPortal />} />
             <Route path="/timetable" element={getTimetableComponent()} />

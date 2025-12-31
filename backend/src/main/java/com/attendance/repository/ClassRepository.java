@@ -15,11 +15,15 @@ public interface ClassRepository extends JpaRepository<Classes, Long> {
     /**
      * Find all classes by department
      */
+    List<Classes> findByDepartment(String department);
+    
     List<Classes> findByDepartmentAndActiveTrue(String department);
 
     /**
      * Find classes by department and year
      */
+    List<Classes> findByDepartmentAndYear(String department, int year);
+    
     List<Classes> findByDepartmentAndYearAndActiveTrue(String department, int year);
 
     /**

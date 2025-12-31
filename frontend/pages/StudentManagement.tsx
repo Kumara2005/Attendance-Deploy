@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { 
   Plus, 
@@ -11,10 +11,13 @@ import {
   CheckCircle2,
   FilterX,
   ChevronDown,
-  CalendarDays
+  CalendarDays,
+  AlertCircle,
+  Loader
 } from 'lucide-react';
-import { MOCK_STUDENTS as INITIAL_STUDENTS, MOCK_STAFF as INITIAL_STAFF } from '../constants';
 import { UserRole, Student, User } from '../types';
+import studentService, { StudentDTO } from '../services/studentService';
+import staffService, { StaffDTO } from '../services/staffService';
 
 interface StudentManagementProps {
   userRole?: UserRole;
@@ -30,8 +33,11 @@ const StudentManagement: React.FC<StudentManagementProps> = ({ userRole }) => {
   const deptContext = searchParams.get('dept');
   
   // State for registry data
-  const [students, setStudents] = useState<Student[]>(INITIAL_STUDENTS);
-  const [staff, setStaff] = useState<User[]>(INITIAL_STAFF);
+  const [students, setStudents] = useState<StudentDTO[]>([]);
+  const [staff, setStaff] = useState<StaffDTO[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [staffLoading, setStaffLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Tab and Search state
   const [activeTab, setActiveTab] = useState<'students' | 'faculty'>(isStudent ? 'faculty' : 'students');
@@ -41,20 +47,68 @@ const StudentManagement: React.FC<StudentManagementProps> = ({ userRole }) => {
   // Modal state
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [passwordInput, setPasswordInput] = useState('');
+
+  // Fetch students from backend on mount
+  useEffect(() => {
+    const fetchStudents = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const data = await studentService.getAll();
+        setStudents(data);
+      } catch (err: any) {
+        setError(err.message || 'Failed to load students');
+        console.error('Error fetching students:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (!isStudent) {
+      fetchStudents();
+    } else {
+      setLoading(false);
+    }
+  }, [isStudent]);
+
+  // Fetch staff from backend on mount
+  useEffect(() => {
+    const fetchStaff = async () => {
+      try {
+        setStaffLoading(true);
+        const data = await staffService.getAll();
+        setStaff(data);
+      } catch (err: any) {
+        console.error('Error fetching staff:', err);
+        // Don't set error for staff as it's not critical for students tab
+        setStaff([]);
+      } finally {
+        setStaffLoading(false);
+      }
+    };
+
+    if (!isStudent) {
+      fetchStaff();
+    } else {
+      setStaffLoading(false);
+    }
+  }, [isStudent]);
 
   // Filter Logic - Scoped by Department and Year if present
   const filteredStudents = useMemo(() => {
     return students.filter(s => {
       const matchesSearch = s.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                           s.rollNumber.toLowerCase().includes(searchTerm.toLowerCase());
+                           (s.rollNo || '').toLowerCase().includes(searchTerm.toLowerCase());
       
-      const matchesYear = yearFilter === '' || s.year === yearFilter || s.section === yearFilter;
+      const matchesYear = yearFilter === '' || s.semester?.toString() === yearFilter || s.section === yearFilter;
       
       if (!deptContext || !isAdmin) return matchesSearch && matchesYear;
       
       const programme = deptContext.toLowerCase();
-      const studentClass = s.class.toLowerCase();
-      const matchesDept = programme.includes(studentClass) || studentClass.includes(programme);
+      const studentDept = (s.department || '').toLowerCase();
+      const matchesDept = programme.includes(studentDept) || studentDept.includes(programme);
       
       return matchesSearch && matchesDept && matchesYear;
     });
@@ -83,6 +137,7 @@ const StudentManagement: React.FC<StudentManagementProps> = ({ userRole }) => {
   const handleOpenEditModal = (item: any = null) => {
     if (!isAdmin) return;
     setEditingItem(item);
+    setPasswordInput('');
     setIsEditModalOpen(true);
   };
 
@@ -91,51 +146,150 @@ const StudentManagement: React.FC<StudentManagementProps> = ({ userRole }) => {
     setYearFilter('');
   };
 
-  const handleSaveEdit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleDeleteStudent = async (id: number) => {
+    if (!window.confirm('Are you sure you want to delete this student?')) return;
+    
+    try {
+      setIsSaving(true);
+      await studentService.delete(id);
+      setStudents(prev => prev.filter(s => s.id !== id));
+    } catch (err: any) {
+      setError(err.message || 'Failed to delete student');
+      console.error('Error deleting student:', err);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDeleteStaff = async (id: number | string) => {
+    if (!window.confirm('Are you sure you want to delete this staff member?')) return;
+    
+    try {
+      setIsSaving(true);
+      await staffService.delete(id as number);
+      setStaff(prev => prev.filter(s => s.id !== id));
+    } catch (err: any) {
+      setError(err.message || 'Failed to delete staff');
+      console.error('Error deleting staff:', err);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     const data: any = Object.fromEntries(formData.entries());
 
     if (activeTab === 'students') {
-      if (editingItem) {
-        setStudents(prev => prev.map(s => s.id === editingItem.id ? { ...s, ...data } : s));
-      } else {
-        const newStudent: Student = {
-          id: `s_${Date.now()}`,
-          name: data.name,
-          rollNumber: data.rollNumber,
-          class: data.class || (deptContext ? deptContext : 'Arts'),
-          section: data.section || 'Year 1',
-          department: data.class || (deptContext ? deptContext : 'Arts'),
-          year: data.section || 'Year 1',
-          attendancePercentage: 0,
-          status: (data.status as any) || 'Active',
-          lastActive: new Date().toISOString().split('T')[0]
-        };
-        setStudents(prev => [newStudent, ...prev]);
+      try {
+        setIsSaving(true);
+        if (editingItem) {
+          // Update existing student
+          const updated = await studentService.update(editingItem.id, {
+            id: editingItem.id,
+            name: data.name,
+            rollNo: data.rollNumber,
+            department: data.class,
+            semester: parseInt(data.section) || 1,
+            section: data.section,
+            email: data.email,
+            phone: data.phone,
+            status: data.status || 'ACTIVE',
+          });
+          setStudents(prev => prev.map(s => s.id === editingItem.id ? updated : s));
+        } else {
+          // Create new student
+          const newStudent: StudentDTO = {
+            name: data.name,
+            rollNo: data.rollNumber,
+            department: data.class,
+            semester: 1,
+            section: data.section || 'Year 1',
+            status: 'ACTIVE',
+          };
+          const created = await studentService.create(newStudent);
+          setStudents(prev => [created, ...prev]);
+        }
+        setIsEditModalOpen(false);
+        setEditingItem(null);
+      } catch (err: any) {
+        setError(err.message || 'Failed to save student');
+        console.error('Error saving student:', err);
+      } finally {
+        setIsSaving(false);
       }
     } else {
-      if (editingItem) {
-        setStaff(prev => prev.map(s => s.id === editingItem.id ? { ...s, ...data } : s));
-      } else {
-        const newFaculty: User = {
-          id: `f_${Date.now()}`,
-          name: data.name,
-          email: data.email,
-          role: UserRole.STAFF,
-          department: data.department || (deptContext ? deptContext : 'Computer Science'),
-          subject: data.department || (deptContext ? deptContext : 'Computer Science'),
-          year: data.year || 'Year 1'
-        };
-        setStaff(prev => [newFaculty, ...prev]);
+      // Staff management with backend API
+      try {
+        setIsSaving(true);
+        if (editingItem) {
+          // Update existing staff
+          const updated = await staffService.update(editingItem.id as number, {
+            id: editingItem.id as number,
+            name: data.name,
+            email: data.email,
+            department: data.department || 'Computer Science',
+            subject: data.subject || 'General',
+            phone: data.phone,
+            qualification: data.qualification,
+            experience: parseInt(data.experience) || 0,
+            status: data.status || 'ACTIVE',
+          });
+          setStaff(prev => prev.map(s => s.id === editingItem.id ? updated : s));
+        } else {
+          // Create new staff with registration endpoint
+          const newStaff: StaffDTO = {
+            staffCode: data.staffCode,
+            name: data.name,
+            email: data.email,
+            password: passwordInput || data.password,
+            department: data.department || 'Computer Science',
+            subject: data.subject || 'General',
+            phone: data.phone,
+            qualification: data.qualification,
+            experience: parseInt(data.experience) || 0,
+            status: 'ACTIVE',
+          };
+          const created = await staffService.create(newStaff);
+          setStaff(prev => [created, ...prev]);
+        }
+        setIsEditModalOpen(false);
+        setEditingItem(null);
+      } catch (err: any) {
+        setError(err.message || 'Failed to save staff');
+        console.error('Error saving staff:', err);
+      } finally {
+        setIsSaving(false);
       }
     }
-    setIsEditModalOpen(false);
-    setEditingItem(null);
   };
 
   return (
     <div className="space-y-10 animate-in fade-in duration-500 max-w-[1600px] mx-auto pb-20">
+      {/* Error Alert */}
+      {error && (
+        <div className="flex items-center gap-4 p-6 bg-rose-50 border border-rose-200 rounded-2xl">
+          <AlertCircle className="w-5 h-5 text-rose-600 flex-shrink-0" />
+          <div className="flex-1">
+            <p className="font-bold text-rose-900">{error}</p>
+          </div>
+          <button 
+            onClick={() => setError(null)}
+            className="text-rose-600 hover:text-rose-900 font-bold"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+      )}
+
+      {/* Loading State */}
+      {loading && activeTab === 'students' && (
+        <div className="flex items-center justify-center gap-3 p-6 bg-slate-50 border border-slate-100 rounded-2xl">
+          <Loader className="w-5 h-5 text-indigo-600 animate-spin" />
+          <p className="font-bold text-slate-600">Loading student data...</p>
+        </div>
+      )}
       <div className="flex flex-col md:flex-row md:items-start justify-between gap-8">
         <div>
           <h1 className="text-6xl font-black text-slate-900 tracking-tighter leading-none">
@@ -222,8 +376,12 @@ const StudentManagement: React.FC<StudentManagementProps> = ({ userRole }) => {
             </thead>
             <tbody className="divide-y divide-slate-50">
               {(activeTab === 'students' ? filteredStudents : filteredStaff).map((item: any) => (
-                <tr key={item.id} className="group hover:bg-slate-50/50 transition-all duration-300">
-                  <td className="px-8 py-6 font-mono text-xs font-bold text-slate-500 text-center">{item.rollNumber || item.id.toUpperCase().split('_')[1]}</td>
+                <tr 
+                  key={item.id} 
+                  className={`group ${isAdmin && activeTab === 'students' ? 'cursor-pointer hover:bg-slate-50/50' : 'hover:bg-slate-50/50'} transition-all duration-300`}
+                  onClick={() => isAdmin && activeTab === 'students' && handleOpenEditModal(item)}
+                >
+                  <td className="px-8 py-6 font-mono text-xs font-bold text-slate-500 text-center">{item.rollNo || item.id?.toString().toUpperCase()}</td>
                   <td className="px-8 py-6">
                     <div className="flex items-center gap-4">
                       <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-sm group-hover:scale-110 transition-transform shadow-sm ${activeTab === 'students' ? 'bg-indigo-50 text-indigo-600' : 'bg-violet-50 text-violet-600'}`}>
@@ -231,13 +389,13 @@ const StudentManagement: React.FC<StudentManagementProps> = ({ userRole }) => {
                       </div>
                       <div>
                         <p className="font-black text-slate-900 text-lg tracking-tight leading-none mb-1.5">{item.name}</p>
-                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{item.email || `${item.class} | ${item.section}`}</p>
+                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{item.email || `${item.department} | ${item.section}`}</p>
                       </div>
                     </div>
                   </td>
                   <td className="px-8 py-6">
                     {activeTab === 'students' ? (
-                       <span className="text-sm font-bold text-slate-600 tracking-tight">{item.class} | {item.section}</span>
+                       <span className="text-sm font-bold text-slate-600 tracking-tight">{item.department} | Sem {item.semester}</span>
                     ) : (
                       <div className="flex flex-col">
                         <span className="text-sm font-bold text-slate-600 tracking-tight">{item.department}</span>
@@ -246,14 +404,24 @@ const StudentManagement: React.FC<StudentManagementProps> = ({ userRole }) => {
                     )}
                   </td>
                   <td className="px-8 py-6">
-                    <div className="flex items-center justify-center w-full">
+                    <div className="flex items-center justify-center gap-2">
                       <span className={`inline-flex items-center justify-center px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all min-w-[140px] text-center ${
                         activeTab === 'students' 
-                          ? (item.status === 'Active' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-rose-50 text-rose-600 border-rose-100')
+                          ? (item.status === 'ACTIVE' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-rose-50 text-rose-600 border-rose-100')
                           : 'bg-violet-50 text-violet-600 border-violet-100'
                       }`}>
                         {activeTab === 'students' ? item.status : 'AUTHORIZED ACCESS'}
                       </span>
+                      {isAdmin && (
+                        <button
+                          onClick={() => activeTab === 'students' ? handleDeleteStudent(item.id) : handleDeleteStaff(item.id)}
+                          disabled={isSaving}
+                          className="px-3 py-2 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-xl transition-all disabled:opacity-50"
+                          title={`Delete ${activeTab === 'students' ? 'student' : 'staff member'}`}
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -277,9 +445,9 @@ const StudentManagement: React.FC<StudentManagementProps> = ({ userRole }) => {
       {isEditModalOpen && isAdmin && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 animate-in fade-in duration-300">
           <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-md" onClick={() => setIsEditModalOpen(false)}></div>
-          <div className="relative w-full max-w-2xl bg-white rounded-[4rem] shadow-2xl overflow-hidden animate-in slide-in-from-bottom-12 duration-500">
-            <form onSubmit={handleSaveEdit} className="p-12">
-              <div className="flex items-center justify-between mb-10">
+          <div className="relative w-full max-w-2xl bg-white rounded-[4rem] shadow-2xl overflow-hidden animate-in slide-in-from-bottom-12 duration-500 max-h-[90vh] flex flex-col">
+            <form onSubmit={handleSaveEdit} className="p-12 overflow-y-auto flex-1 flex flex-col">
+              <div className="flex items-center justify-between mb-10 sticky top-0 bg-white">
                 <div className="flex items-center gap-5">
                   <div className="w-16 h-16 bg-indigo-600 rounded-[2rem] flex items-center justify-center text-white shadow-xl shadow-indigo-600/20">
                     {activeTab === 'students' ? <Users className="w-8 h-8" /> : <Briefcase className="w-8 h-8" />}
@@ -295,19 +463,60 @@ const StudentManagement: React.FC<StudentManagementProps> = ({ userRole }) => {
                 <div className="space-y-3"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Full Name</label><input required name="name" defaultValue={editingItem?.name || ''} className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-5 font-bold text-slate-900 outline-none focus:ring-4 focus:ring-indigo-100" /></div>
                 {activeTab === 'students' ? (
                   <>
-                    <div className="space-y-3"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Roll ID</label><input required name="rollNumber" defaultValue={editingItem?.rollNumber || ''} className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-5 font-bold text-slate-900 outline-none focus:ring-4 focus:ring-indigo-100" /></div>
-                    <div className="space-y-3"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Academic Year</label><input required name="section" defaultValue={editingItem?.section || yearFilter || 'Year 1'} className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-5 font-bold text-slate-900 outline-none focus:ring-4 focus:ring-indigo-100" /></div>
-                    <div className="space-y-3 md:col-span-2"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Class Stream</label><input required name="class" defaultValue={editingItem?.class || (deptContext ? deptContext : 'B.Sc Computer Science')} className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-5 font-bold text-slate-900 outline-none focus:ring-4 focus:ring-indigo-100" /></div>
+                    <div className="space-y-3"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Roll Number</label><input required name="rollNumber" defaultValue={editingItem?.rollNo || ''} className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-5 font-bold text-slate-900 outline-none focus:ring-4 focus:ring-indigo-100" /></div>
+                    <div className="space-y-3"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Semester</label><select required name="section" defaultValue={editingItem?.semester?.toString() || yearFilter || '1'} className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-5 font-bold text-slate-900 outline-none focus:ring-4 focus:ring-indigo-100"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option></select></div>
+                    <div className="space-y-3 md:col-span-2"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Department</label><input required name="class" defaultValue={editingItem?.department || (deptContext ? deptContext : 'Computer Science')} className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-5 font-bold text-slate-900 outline-none focus:ring-4 focus:ring-indigo-100" /></div>
+                    <div className="space-y-3 md:col-span-2"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Email</label><input type="email" name="email" defaultValue={editingItem?.email || ''} className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-5 font-bold text-slate-900 outline-none focus:ring-4 focus:ring-indigo-100" /></div>
+                    <div className="space-y-3 md:col-span-2"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Phone</label><input type="tel" name="phone" defaultValue={editingItem?.phone || ''} className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-5 font-bold text-slate-900 outline-none focus:ring-4 focus:ring-indigo-100" /></div>
                   </>
                 ) : (
                   <>
-                    <div className="space-y-3"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Institutional Email</label><input required type="email" name="email" defaultValue={editingItem?.email || ''} className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-5 font-bold text-slate-900 outline-none focus:ring-4 focus:ring-indigo-100" /></div>
-                    <div className="space-y-3"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Academic Year</label><input required name="year" defaultValue={editingItem?.year || yearFilter || 'Year 1'} className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-5 font-bold text-slate-900 outline-none focus:ring-4 focus:ring-indigo-100" /></div>
-                    <div className="space-y-3 md:col-span-2"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Department</label><input required name="department" defaultValue={editingItem?.department || (deptContext ? deptContext : 'B.Sc Computer Science')} className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-5 font-bold text-slate-900 outline-none focus:ring-4 focus:ring-indigo-100" /></div>
+                    <div className="space-y-3"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Staff Code</label><input required name="staffCode" defaultValue={editingItem?.staffCode || ''} className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-5 font-bold text-slate-900 outline-none focus:ring-4 focus:ring-indigo-100" placeholder="e.g., STAFF001" /></div>
+                    <div className="space-y-3 md:col-span-2"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Institutional Email</label><input required type="email" name="email" defaultValue={editingItem?.email || ''} className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-5 font-bold text-slate-900 outline-none focus:ring-4 focus:ring-indigo-100" /></div>
+                    {!editingItem && (
+                      <div className="space-y-2 md:col-span-2">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Password</label>
+                        <input 
+                          required 
+                          type="password" 
+                          name="password" 
+                          value={passwordInput}
+                          onChange={(e) => setPasswordInput(e.target.value)}
+                          className={`w-full bg-slate-50 border rounded-2xl px-6 py-5 font-bold text-slate-900 outline-none focus:ring-4 transition-all ${
+                            passwordInput.length > 0 && passwordInput.length < 6
+                              ? 'border-rose-300 focus:ring-rose-100'
+                              : passwordInput.length >= 6
+                              ? 'border-emerald-300 focus:ring-emerald-100'
+                              : 'border-slate-100 focus:ring-indigo-100'
+                          }`}
+                          placeholder="Minimum 6 characters"
+                        />
+                        <div className="flex items-center gap-2 mt-1">
+                          {passwordInput.length === 0 ? (
+                            <p className="text-[9px] text-slate-400">Required: at least 6 characters</p>
+                          ) : passwordInput.length < 6 ? (
+                            <>
+                              <X className="w-4 h-4 text-rose-500 flex-shrink-0" />
+                              <p className="text-[9px] text-rose-600 font-semibold">{6 - passwordInput.length} more characters needed</p>
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                              <p className="text-[9px] text-emerald-600 font-semibold">Password is valid</p>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    <div className="space-y-3"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Department</label><input required name="department" defaultValue={editingItem?.department || (deptContext ? deptContext : 'Computer Science')} className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-5 font-bold text-slate-900 outline-none focus:ring-4 focus:ring-indigo-100" /></div>
+                    <div className="space-y-3"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Subject</label><input name="subject" defaultValue={editingItem?.subject || ''} className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-5 font-bold text-slate-900 outline-none focus:ring-4 focus:ring-indigo-100" /></div>
+                    <div className="space-y-3"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Phone</label><input type="tel" name="phone" defaultValue={editingItem?.phone || ''} className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-5 font-bold text-slate-900 outline-none focus:ring-4 focus:ring-indigo-100" /></div>
+                    <div className="space-y-3"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Qualification</label><input name="qualification" defaultValue={editingItem?.qualification || ''} className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-5 font-bold text-slate-900 outline-none focus:ring-4 focus:ring-indigo-100" /></div>
+                    <div className="space-y-3"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Experience (Years)</label><input type="number" name="experience" defaultValue={editingItem?.experience || '0'} className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-5 font-bold text-slate-900 outline-none focus:ring-4 focus:ring-indigo-100" /></div>
                   </>
                 )}
               </div>
-              <div className="mt-12 flex gap-4"><button type="button" onClick={() => setIsEditModalOpen(false)} className="flex-1 py-6 bg-slate-50 text-slate-400 rounded-[2rem] font-black text-[10px] uppercase tracking-widest hover:bg-slate-100 border border-slate-100 transition-all">Cancel</button><button type="submit" className="flex-[2] py-6 bg-indigo-600 text-white rounded-[2rem] font-black text-[10px] uppercase tracking-widest shadow-2xl shadow-indigo-600/20 hover:bg-indigo-700 transition-all flex items-center justify-center gap-3"><Save className="w-5 h-5" /> Synchronize Identity</button></div>
+              <div className="mt-12 flex gap-4 sticky bottom-0 bg-white pt-6 border-t border-slate-100"><button type="button" onClick={() => setIsEditModalOpen(false)} className="flex-1 py-6 bg-slate-50 text-slate-400 rounded-[2rem] font-black text-[10px] uppercase tracking-widest hover:bg-slate-100 border border-slate-100 transition-all disabled:opacity-50" disabled={isSaving}>Cancel</button><button type="submit" disabled={isSaving} className="flex-[2] py-6 bg-indigo-600 text-white rounded-[2rem] font-black text-[10px] uppercase tracking-widest shadow-2xl shadow-indigo-600/20 hover:bg-indigo-700 transition-all flex items-center justify-center gap-3 disabled:opacity-50">{isSaving ? <Loader className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />} {isSaving ? 'Saving...' : 'Synchronize Identity'}</button></div>
             </form>
           </div>
         </div>

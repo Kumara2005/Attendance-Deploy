@@ -10,8 +10,8 @@ export interface LoginResponse {
   token: string;
   refreshToken: string;
   username: string;
-  role: string;
-  userId: number;
+  role: string; // Can be ROLE_ADMIN, ROLE_STAFF, ROLE_STUDENT
+  userId: number | string;
   name: string;
   email: string;
 }
@@ -22,28 +22,30 @@ export interface RefreshTokenRequest {
 
 /**
  * Authentication Service
+ * Handles JWT-based authentication with the deployed backend
  */
 export const authService = {
   /**
-   * Login with username and password
+   * Login with username and password against the deployed backend
    */
   login: async (credentials: LoginRequest): Promise<LoginResponse> => {
     const response = await apiClient.post<ApiResponse<LoginResponse>>('/auth/login', credentials);
     const data = extractData<LoginResponse>(response);
     
-    // Store authentication data with normalized role
+    // Store authentication tokens and user data
     if (data.token) {
       // Normalize role before storing (handles ROLE_ADMIN -> ADMIN conversion)
       const normalizedRole = normalizeRole(data.role);
       
-      localStorage.setItem('jwt_token', data.token);
-      localStorage.setItem('refresh_token', data.refreshToken);
+      // Store tokens with correct keys
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('refreshToken', data.refreshToken);
       localStorage.setItem('user_data', JSON.stringify({
         userId: data.userId,
         username: data.username,
         name: data.name,
         email: data.email,
-        role: normalizedRole, // Store normalized role
+        role: normalizedRole, // Store normalized role for consistency
       }));
     }
     
@@ -54,7 +56,7 @@ export const authService = {
    * Refresh access token using refresh token
    */
   refreshToken: async (): Promise<LoginResponse> => {
-    const refreshToken = localStorage.getItem('refresh_token');
+    const refreshToken = localStorage.getItem('refreshToken');
     if (!refreshToken) {
       throw new Error('No refresh token available');
     }
@@ -68,27 +70,27 @@ export const authService = {
 
     // Update stored tokens
     if (data.token) {
-      localStorage.setItem('jwt_token', data.token);
-      localStorage.setItem('refresh_token', data.refreshToken);
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('refreshToken', data.refreshToken);
     }
 
     return data;
   },
 
   /**
-   * Logout and clear stored data
+   * Logout and clear stored authentication data
    */
   logout: () => {
-    localStorage.removeItem('jwt_token');
-    localStorage.removeItem('refresh_token');
+    localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
     localStorage.removeItem('user_data');
   },
 
   /**
-   * Check if user is authenticated
+   * Check if user is currently authenticated
    */
   isAuthenticated: (): boolean => {
-    return !!localStorage.getItem('jwt_token');
+    return !!localStorage.getItem('token');
   },
 
   /**

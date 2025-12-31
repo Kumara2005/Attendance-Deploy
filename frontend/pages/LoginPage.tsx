@@ -30,17 +30,9 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
     setSelectedRole(role);
     setStep('login-form');
     setError('');
-    // Pre-fill for convenience
-    if (role === UserRole.STAFF) {
-      setUsername('staff');
-      setPassword('staff123');
-    } else if (role === UserRole.ADMIN) {
-      setUsername('admin');
-      setPassword('admin123');
-    } else {
-      setUsername('student');
-      setPassword('student123');
-    }
+    // Clear fields for user to enter credentials
+    setUsername('');
+    setPassword('');
   };
 
   const handleBack = () => {
@@ -54,37 +46,34 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
     setIsLoading(true);
     setError('');
 
-    // FRONTEND-ONLY MODE: Mock authentication without backend
     try {
-      // Simulate network delay
-      await new Promise(resolve => setTimeout(resolve, 800));
-
-      // Mock authentication - validate credentials
-      const mockUsers = {
-        'admin': { password: 'admin123', role: UserRole.ADMIN, name: 'Dr. Sarah Jenkins', email: 'admin@attendx.edu', userId: 'admin_1' },
-        'staff': { password: 'staff123', role: UserRole.STAFF, name: 'Prof. John Smith', email: 'staff@attendx.edu', userId: 'staff_1' },
-        'student': { password: 'student123', role: UserRole.STUDENT, name: 'Alex Rivera', email: 'alex.rivera@attendx.edu', userId: 'student_1' }
-      };
-
-      const user = mockUsers[username.toLowerCase() as keyof typeof mockUsers];
-      
-      if (!user || user.password !== password) {
-        throw new Error('Invalid credentials. Please try again.');
-      }
-
-      // Store mock user data in localStorage with correct key that App.tsx expects
-      localStorage.setItem('user_data', JSON.stringify({
-        userId: user.userId,
+      // Call the real backend API through authService
+      const response = await authService.login({
         username: username,
-        role: user.role,
-        name: user.name,
-        email: user.email
-      }));
+        password: password
+      });
 
-      // Call onLogin for App state management
-      onLogin(user.role, user.email);
+      // Extract the role from the response and pass to onLogin
+      const role = authService.getCurrentUser()?.role;
+      if (role) {
+        onLogin(role);
+      }
     } catch (err: any) {
-      setError(err.message || 'Login failed. Please check your credentials.');
+      // Handle different error scenarios
+      let errorMessage = 'Login failed. Please check your credentials and try again.';
+      
+      if (err.response?.status === 401) {
+        errorMessage = 'Invalid username or password.';
+      } else if (err.response?.status === 403) {
+        errorMessage = 'Your account has been disabled.';
+      } else if (err.response?.status === 500) {
+        errorMessage = 'Server error. Please try again later.';
+      } else if (err.message === 'Network Error') {
+        errorMessage = 'Unable to connect to the server. Please check your internet connection.';
+      }
+      
+      setError(errorMessage);
+      console.error('Login error:', err);
     } finally {
       setIsLoading(false);
     }
