@@ -31,6 +31,7 @@ import {
 import { UserRole, ClassOverview, Student, User } from '../types';
 import { getCurrentRole } from '../services/roles';
 import studentService from '../services/studentService';
+import apiClient from '../services/api';
 
 const Dashboard: React.FC = () => {
   // Use getCurrentRole from service for reliability across refreshes
@@ -163,14 +164,39 @@ const Dashboard: React.FC = () => {
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const [programmeFilter, setProgrammeFilter] = useState('All Programmes');
+  const [programmes, setProgrammes] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const filteredProgrammes = MOCK_CLASSES.filter(p => 
-    programmeFilter === 'All Programmes' || p.className.includes(programmeFilter)
+  // ✨ NEW: Fetch real programmes data from backend
+  useEffect(() => {
+    const fetchProgrammes = async () => {
+      try {
+        setLoading(true);
+        const response = await apiClient.get('/admin/dashboard/programmes');
+        const programmesData = response.data.data || [];
+        setProgrammes(programmesData);
+        console.log('✅ Loaded programmes from database:', programmesData);
+      } catch (error) {
+        console.error('Error fetching programmes:', error);
+        // Fallback to mock data
+        setProgrammes(MOCK_CLASSES);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchProgrammes();
+  }, []);
+
+  const filteredProgrammes = programmes.filter(p => 
+    programmeFilter === 'All Programmes' || 
+    p.programmeName?.includes(programmeFilter) ||
+    p.className?.includes(programmeFilter)
   );
 
-  const handleProgrammeClick = (programme: ClassOverview) => {
+  const handleProgrammeClick = (programme: any) => {
     // Navigate to the Registry with the department context
-    navigate(`/students?dept=${encodeURIComponent(programme.className)}`);
+    navigate(`/students?dept=${encodeURIComponent(programme.programmeName || programme.className)}`);
   };
 
   return (
@@ -208,14 +234,31 @@ const AdminDashboard = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4 gap-8">
-        {filteredProgrammes.map((programme, idx) => (
-          <ProgrammeCard 
-            key={idx} 
-            programme={programme} 
-            onClick={() => handleProgrammeClick(programme)} 
-            isAdmin={true}
-          />
-        ))}
+        {loading ? (
+          // Loading state
+          Array.from({ length: 4 }).map((_, idx) => (
+            <div key={idx} className="p-8 bg-white rounded-[2rem] border border-slate-100 animate-pulse">
+              <div className="h-4 bg-slate-200 rounded-full mb-6 w-24"></div>
+              <div className="h-8 bg-slate-200 rounded-lg mb-8 w-3/4"></div>
+              <div className="h-12 bg-slate-100 rounded-lg mb-6"></div>
+            </div>
+          ))
+        ) : filteredProgrammes.length > 0 ? (
+          // Show programmes
+          filteredProgrammes.map((programme, idx) => (
+            <ProgrammeCard 
+              key={idx} 
+              programme={programme} 
+              onClick={() => handleProgrammeClick(programme)} 
+              isAdmin={true}
+            />
+          ))
+        ) : (
+          // No data
+          <div className="col-span-full text-center py-20 bg-slate-50 rounded-[2rem] border border-slate-100">
+            <p className="text-slate-500 font-medium">No programmes found</p>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
@@ -411,7 +454,13 @@ const StudentDashboard = ({ student }: { student: Student }) => (
   </div>
 );
 
-const ProgrammeCard: React.FC<{ programme: ClassOverview; onClick: () => void; isAdmin?: boolean }> = ({ programme, onClick, isAdmin }) => {
+const ProgrammeCard: React.FC<{ programme: any; onClick: () => void; isAdmin?: boolean }> = ({ programme, onClick, isAdmin }) => {
+  // Handle both old (className) and new (programmeName) formats
+  const name = programme.programmeName || programme.className || '';
+  const students = programme.totalEnrollment || programme.totalStudents || 0;
+  const attendance = programme.averageAttendance || 0;
+  const trend = programme.trend || 'stable';
+  
   return (
     <div 
       onClick={onClick}
@@ -423,26 +472,26 @@ const ProgrammeCard: React.FC<{ programme: ClassOverview; onClick: () => void; i
         </div>
         {!isAdmin && (
           <div className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${
-            programme.trend === 'up' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'
+            trend === 'up' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'
           }`}>
-            {programme.trend === 'up' ? '↑ Increasing' : '↓ Decreasing'}
+            {trend === 'up' ? '↑ Increasing' : '↓ Decreasing'}
           </div>
         )}
       </div>
       
       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Institutional Stream</p>
       <h3 className="text-3xl font-black text-slate-900 tracking-tighter leading-tight mb-8 group-hover:text-indigo-600 transition-colors">
-        {programme.className}
+        {name}
       </h3>
 
       <div className="flex items-end justify-between pt-8 border-t border-slate-50">
         <div>
            {isAdmin ? (
-             <p className="text-4xl font-black text-slate-900 tracking-tightest leading-none mb-1">{programme.totalStudents}</p>
+             <p className="text-4xl font-black text-slate-900 tracking-tightest leading-none mb-1">{students}</p>
            ) : (
-             <p className="text-5xl font-black text-slate-900 tracking-tightest leading-none mb-1">{programme.averageAttendance}%</p>
+             <p className="text-5xl font-black text-slate-900 tracking-tightest leading-none mb-1">{attendance}%</p>
            )}
-           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{isAdmin ? 'Total Enrolled' : `${programme.totalStudents} Enrolled`}</p>
+           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{isAdmin ? 'Total Enrolled' : `${students} Enrolled`}</p>
         </div>
         <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-300 group-hover:bg-indigo-600 group-hover:text-white transition-all">
           <ChevronRight className="w-5 h-5" />
