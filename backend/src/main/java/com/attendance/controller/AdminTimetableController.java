@@ -52,18 +52,50 @@ public class AdminTimetableController {
                         .body(ApiResponse.error("Day and period are required"));
             }
 
-            // Find subject
+            // Find subject (use default/placeholder if not found)
             Subject subject = null;
-            if (request.getSubjectCode() != null) {
+            if (request.getSubjectCode() != null && !request.getSubjectCode().isEmpty()) {
                 subject = subjectRepository.findBySubjectCode(request.getSubjectCode())
-                        .orElseThrow(() -> new RuntimeException("Subject not found: " + request.getSubjectCode()));
+                        .orElse(null);
+            }
+            
+            // If subject is still null, try to get any default subject
+            if (subject == null) {
+                // Get first available subject for department and semester
+                subject = subjectRepository
+                        .findByDepartmentAndSemester(
+                                request.getDepartment(),
+                                request.getSemester())
+                        .stream()
+                        .findFirst()
+                        .orElse(null);
             }
 
-            // Find staff
+            // Find staff (optional - can be null for now)
             Staff staff = null;
-            if (request.getStaffCode() != null) {
+            if (request.getStaffCode() != null && !request.getStaffCode().isEmpty()) {
                 staff = staffRepository.findByStaffCode(request.getStaffCode())
-                        .orElseThrow(() -> new RuntimeException("Staff not found: " + request.getStaffCode()));
+                        .orElse(null);
+            }
+            
+            // If staff is still null, get any active staff from department
+            if (staff == null) {
+                staff = staffRepository
+                        .findByDepartmentAndActive(request.getDepartment(), true)
+                        .stream()
+                        .findFirst()
+                        .orElse(null);
+            }
+            
+            // Final check: if no subject or staff available, return error
+            if (subject == null || staff == null) {
+                return ResponseEntity.badRequest()
+                        .body(ApiResponse.error(
+                                "Cannot save: " + 
+                                (subject == null ? "No subjects available. " : "") +
+                                (staff == null ? "No staff available. " : "") +
+                                "Please add subjects and staff for department '" + 
+                                request.getDepartment() + "' first."));
             }
 
             // Check for existing session at this slot
