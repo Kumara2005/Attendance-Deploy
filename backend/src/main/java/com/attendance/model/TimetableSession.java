@@ -13,11 +13,11 @@ public class TimetableSession {
 	private Long id;
 
 	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "subject_id", nullable = false)
+	@JoinColumn(name = "subject_id", nullable = true)
 	private Subject subject;
 
 	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "staff_id", nullable = false)
+	@JoinColumn(name = "staff_id", nullable = true)
 	private Staff staff;
 
 	@ManyToOne(fetch = FetchType.LAZY)

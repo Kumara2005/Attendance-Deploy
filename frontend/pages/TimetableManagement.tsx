@@ -418,34 +418,35 @@ const TimetableManagement: React.FC = () => {
     }));
 
     // Only save to database for admin and when semester is selected
-    if (!isStaff && selectedSemester) {
+    if (!isStaff && selectedSemester && subject !== 'Select Subject') {
       try {
         const period = periods[periodIndex];
         const semesterNum = parseInt(selectedSemester.split(' ')[1]); // Extract number from "Semester 1"
 
-        // For now, save without specific subject/staff code
-        // In full implementation, you'd map subject names to codes
+        // Find subject code from subject name
+        const subjectObj = semesterSubjects.find(s => s.subjectName === subject);
+        const subjectCode = subjectObj?.subjectCode || null;
+
         const sessionData = {
           day: day,
           periodNumber: periodIndex + 1,
           startTime: period.start + ':00',
           endTime: period.end + ':00',
-          department: 'Computer Science',
+          department: selectedDepartment,
           semester: semesterNum,
           section: 'A',
-          subjectCode: null, // Will need subject mapping
-          staffCode: null,   // Will need staff selection
+          subjectCode: subjectCode,
+          staffCode: null,   // Will need staff selection in future
           roomNumber: null
         };
 
-        console.log('💾 Saving session to database:', sessionData);
+        console.log('💾 Auto-saving session to database:', sessionData);
         
-        // Uncomment when ready to save:
-        // const response = await apiClient.post('/admin/timetable/session', sessionData);
-        // console.log('✅ Session saved:', response.data);
+        const response = await apiClient.post('/admin/timetable/session', sessionData);
+        console.log('✅ Session auto-saved:', response.data);
         
       } catch (error) {
-        console.error('❌ Error saving session:', error);
+        console.error('❌ Error auto-saving session:', error);
       }
     }
   };
@@ -456,46 +457,53 @@ const TimetableManagement: React.FC = () => {
   };
 
   const handleSave = async () => {
+    if (!selectedSemester) {
+      alert('⚠️ Please select a semester before committing changes.');
+      return;
+    }
+
     setSaving(true);
     try {
-      // In full implementation, batch save all timetable changes
       const sessionPromises: Promise<any>[] = [];
+      const semesterNum = parseInt(selectedSemester.split(' ')[1]);
       
-      DAYS.forEach((day, dayIndex) => {
+      DAYS.forEach((day) => {
         timetable[day].forEach((subject, periodIndex) => {
           if (subject && subject !== 'Select Subject' && subject !== 'Free Period') {
             const period = periods[periodIndex];
-            const semesterNum = selectedSemester ? parseInt(selectedSemester.split(' ')[1]) : 1;
+            
+            // Find subject code from subject name
+            const subjectObj = semesterSubjects.find(s => s.subjectName === subject);
+            const subjectCode = subjectObj?.subjectCode || null;
             
             const sessionData = {
               day: day,
               periodNumber: periodIndex + 1,
               startTime: period.start + ':00',
               endTime: period.end + ':00',
-              department: 'Computer Science',
+              department: selectedDepartment,
               semester: semesterNum,
               section: 'A',
-              subjectCode: null,
+              subjectCode: subjectCode,
               staffCode: null,
               roomNumber: `R${periodIndex + 1}01`
             };
             
-            // Uncomment to actually save:
-            // sessionPromises.push(apiClient.post('/admin/timetable/session', sessionData));
+            sessionPromises.push(apiClient.post('/admin/timetable/session', sessionData));
           }
         });
       });
       
-      // await Promise.all(sessionPromises);
+      console.log(`💾 Batch saving ${sessionPromises.length} timetable sessions...`);
+      const results = await Promise.all(sessionPromises);
+      console.log('✅ All sessions saved:', results);
       
-      setTimeout(() => {
-        setSaving(false);
-        alert('✅ Institutional Schedule successfully synchronized to database.');
-      }, 1200);
+      setSaving(false);
+      alert(`✅ Institutional Schedule successfully synchronized!\n${sessionPromises.length} sessions saved to timetable_session table.`);
     } catch (error) {
       setSaving(false);
-      console.error('Error saving timetable:', error);
-      alert('❌ Error saving timetable. Please try again.');
+      console.error('❌ Error saving timetable:', error);
+      alert('❌ Error saving timetable to database. Please check console and try again.');
     }
   };
 

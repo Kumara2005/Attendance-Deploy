@@ -120,8 +120,8 @@ CREATE TABLE classes (
 -- ========================================
 CREATE TABLE timetable_session (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
-    subject_id BIGINT NOT NULL,
-    staff_id BIGINT NOT NULL,
+    subject_id BIGINT,
+    staff_id BIGINT,
     class_id BIGINT,
     department VARCHAR(100) NOT NULL,
     semester INT NOT NULL,
