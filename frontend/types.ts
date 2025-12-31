@@ -23,6 +23,7 @@ export interface Student {
   name: string;
   class: string;
   section: string;
+  department: string;
   attendancePercentage: number;
   lastActive: string;
   status: 'Active' | 'Inactive';

@@ -97,6 +97,7 @@ const generateCSStudents = (): Student[] => {
         name: `${firstNames[i]} ${lastNames[i]}`,
         class: 'B.Sc Computer Science',
         section: `Year ${y}`,
+        department: 'Computer Science',
         year: `Year ${y}`,
         attendancePercentage: Math.floor(Math.random() * 40) + 60,
         lastActive: '2024-05-20',
@@ -109,11 +110,11 @@ const generateCSStudents = (): Student[] => {
 
 export const MOCK_STUDENTS: Student[] = [
   ...generateCSStudents(),
-  { id: 's1', rollNumber: 'STU-001', name: 'Alex Rivera', class: 'Arts', section: 'Year 1', year: 'Year 1', attendancePercentage: 92, lastActive: '2024-05-20', status: 'Active' },
-  { id: 's2', rollNumber: 'STU-002', name: 'Maria Garcia', class: 'Arts', section: 'Year 1', year: 'Year 1', attendancePercentage: 85, lastActive: '2024-05-20', status: 'Active' },
-  { id: 's3', rollNumber: 'STU-003', name: 'John Chen', class: 'Science', section: 'Year 2', year: 'Year 2', attendancePercentage: 78, lastActive: '2024-05-19', status: 'Active' },
-  { id: 's4', rollNumber: 'STU-004', name: 'Sarah Miller', class: 'Commerce', section: 'Year 3', year: 'Year 3', attendancePercentage: 98, lastActive: '2024-05-20', status: 'Active' },
-  { id: 's5', rollNumber: 'STU-005', name: 'David Wilson', class: 'Management', section: 'Year 1', year: 'Year 1', attendancePercentage: 62, lastActive: '2024-05-18', status: 'Active' },
+  { id: 's1', rollNumber: 'STU-001', name: 'Alex Rivera', class: 'Arts', section: 'Year 1', department: 'Arts', year: 'Year 1', attendancePercentage: 92, lastActive: '2024-05-20', status: 'Active' },
+  { id: 's2', rollNumber: 'STU-002', name: 'Maria Garcia', class: 'Arts', section: 'Year 1', department: 'Arts', year: 'Year 1', attendancePercentage: 85, lastActive: '2024-05-20', status: 'Active' },
+  { id: 's3', rollNumber: 'STU-003', name: 'John Chen', class: 'Science', section: 'Year 2', department: 'Science', year: 'Year 2', attendancePercentage: 78, lastActive: '2024-05-19', status: 'Active' },
+  { id: 's4', rollNumber: 'STU-004', name: 'Sarah Miller', class: 'Commerce', section: 'Year 3', department: 'Commerce', year: 'Year 3', attendancePercentage: 98, lastActive: '2024-05-20', status: 'Active' },
+  { id: 's5', rollNumber: 'STU-005', name: 'David Wilson', class: 'Management', section: 'Year 1', department: 'Management', year: 'Year 1', attendancePercentage: 62, lastActive: '2024-05-18', status: 'Active' },
 ];
 
 export const MOCK_CLASSES: ClassOverview[] = [

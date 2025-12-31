@@ -65,6 +65,7 @@ const Dashboard: React.FC = () => {
             section: dashboardData.identity.section,
             year: dashboardData.identity.year,
             attendancePercentage: Math.round(dashboardData.overallAttendancePercentage), // Round to nearest integer
+            lastActive: new Date().toISOString().split('T')[0],
             // Change 'warning' to 'Inactive'
             status: dashboardData.overallAttendancePercentage >= 75 ? 'Active' : 'Inactive'          };
           

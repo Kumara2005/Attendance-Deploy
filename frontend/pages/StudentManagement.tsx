@@ -106,6 +106,7 @@ const StudentManagement: React.FC<StudentManagementProps> = ({ userRole }) => {
           rollNumber: data.rollNumber,
           class: data.class || (deptContext ? deptContext : 'Arts'),
           section: data.section || 'Year 1',
+          department: data.class || (deptContext ? deptContext : 'Arts'),
           year: data.section || 'Year 1',
           attendancePercentage: 0,
           status: (data.status as any) || 'Active',
