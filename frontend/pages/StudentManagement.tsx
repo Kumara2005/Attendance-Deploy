@@ -470,8 +470,9 @@ const StudentManagement: React.FC<StudentManagementProps> = ({ userRole }) => {
                     <div className="space-y-3 md:col-span-2"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Phone</label><input type="tel" name="phone" defaultValue={editingItem?.phone || ''} className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-5 font-bold text-slate-900 outline-none focus:ring-4 focus:ring-indigo-100" /></div>
                     {!editingItem && (
                       <div className="space-y-2 md:col-span-2 p-4 bg-indigo-50 border border-indigo-200 rounded-2xl">
-                        <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">🔐 Password Auto-Generated</p>
-                        <p className="text-sm text-indigo-700 font-semibold">Password is automatically set to the Roll Number for first login.</p>
+                        <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">🔐 Login Credentials Auto-Generated</p>
+                        <p className="text-sm text-indigo-700 font-semibold">Username: Student Name | Password: Roll Number</p>
+                        <p className="text-xs text-indigo-600">Student can login with their name and roll number.</p>
                       </div>
                     )}
                   </>

@@ -54,7 +54,7 @@ public class StaffController {
             User user = new User();
             user.setUsername(dto.getEmail());
             user.setPassword(passwordEncoder.encode(dto.getPassword()));
-            user.setRole("STAFF");
+            user.setRole("ROLE_STAFF"); // Role with ROLE_ prefix
             user.setEnabled(true);
             User savedUser = userRepo.save(user);
             

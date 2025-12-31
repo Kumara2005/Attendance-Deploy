@@ -39,12 +39,12 @@ public class StudentService {
 	public StudentDTO saveDTO(StudentDTO studentDTO) {
 		Student student = toEntity(studentDTO);
 		
-		// Create User account automatically with roll number as password
+		// Create User account automatically with student name as username and roll number as password
 		try {
 			User user = new User();
-			user.setUsername(studentDTO.getRollNo()); // Roll number as username
+			user.setUsername(studentDTO.getName()); // Student name as username
 			user.setPassword(passwordEncoder.encode(studentDTO.getRollNo())); // Roll number as password (hashed)
-			user.setRole("STUDENT");
+			user.setRole("ROLE_STUDENT"); // Role with ROLE_ prefix
 			user.setEnabled(true);
 			User savedUser = userRepository.save(user);
 			
