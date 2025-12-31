@@ -167,25 +167,60 @@ const AdminDashboard = () => {
   const [programmes, setProgrammes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // ✨ NEW: Fetch real programmes data from backend
+  // ✨ Fetch programmes AND classes, merge them for display
   useEffect(() => {
-    const fetchProgrammes = async () => {
+    const fetchData = async () => {
       try {
         setLoading(true);
-        const response = await apiClient.get('/admin/dashboard/programmes');
-        const programmesData = response.data.data || [];
-        setProgrammes(programmesData);
-        console.log('✅ Loaded programmes from database:', programmesData);
-      } catch (error) {
-        console.error('Error fetching programmes:', error);
-        // Fallback to mock data
-        setProgrammes(MOCK_CLASSES);
+        let combinedData: any[] = [];
+
+        // Fetch programmes (from enrolled students)
+        try {
+          const progResponse = await apiClient.get('/admin/dashboard/programmes');
+          const programmesData = progResponse.data.data || [];
+          combinedData = [...programmesData];
+          console.log('✅ Loaded programmes from database:', programmesData);
+        } catch (error) {
+          console.error('Error fetching programmes:', error);
+        }
+
+        // Fetch classes (from Classes table) and convert to programme format
+        try {
+          const classResponse = await apiClient.get('/admin/classes');
+          const classesData = classResponse.data.data || [];
+          
+          // Convert classes to programme format
+          const classProgrammes = classesData.map((c: any) => ({
+            name: c.className,
+            department: c.department,
+            studentCount: 0, // No students assigned yet
+            facultyCount: 0,
+            averageAttendance: 0,
+            years: [c.year],
+            semester: c.semester,
+            section: c.section,
+            isFromClassTable: true
+          }));
+          
+          combinedData = [...combinedData, ...classProgrammes];
+          console.log('✅ Loaded classes from database:', classesData);
+        } catch (error) {
+          console.error('Error fetching classes:', error);
+        }
+
+        // If no data at all, fallback to mock
+        if (combinedData.length === 0) {
+          combinedData = MOCK_CLASSES;
+          console.log('⚠️ No data, using mock classes');
+        }
+
+        setProgrammes(combinedData);
       } finally {
         setLoading(false);
       }
     };
     
-    fetchProgrammes();
+    fetchData();
   }, []);
 
   const filteredProgrammes = programmes.filter(p => 
