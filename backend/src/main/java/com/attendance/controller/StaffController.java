@@ -39,7 +39,7 @@ public class StaffController {
     public ResponseEntity<ApiResponse<Staff>> registerStaff(@Valid @RequestBody StaffRegistrationDTO dto) {
         try {
             // Check if user already exists
-            if (userRepo.findByUsername(dto.getEmail()).isPresent()) {
+            if (userRepo.findByUsernameIgnoreCase(dto.getEmail()).isPresent()) {
                 return ResponseEntity.badRequest()
                         .body(ApiResponse.error("User with this email already exists"));
             }

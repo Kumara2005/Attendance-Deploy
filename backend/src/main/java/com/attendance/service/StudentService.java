@@ -41,6 +41,11 @@ public class StudentService {
 		
 		// Create User account automatically with student name as username and roll number as password
 		try {
+						// Check if user already exists
+						if (userRepository.findByUsernameIgnoreCase(studentDTO.getName()).isPresent()) {
+							throw new RuntimeException("User with this name already exists");
+						}
+			
 			User user = new User();
 			user.setUsername(studentDTO.getName()); // Student name as username
 			user.setPassword(passwordEncoder.encode(studentDTO.getRollNo())); // Roll number as password (hashed)
