@@ -90,10 +90,19 @@ public class StudentService {
 	}
 
 	public void delete(Long id) {
-		if (!repo.existsById(id)) {
-			throw new ResourceNotFoundException("Student", "id", id);
-		}
+		Student student = repo.findById(id)
+				.orElseThrow(() -> new ResourceNotFoundException("Student", "id", id));
+		
+		// Get the associated user before deleting student
+		User associatedUser = student.getUser();
+		
+		// Delete the student first (due to foreign key constraint)
 		repo.deleteById(id);
+		
+		// Then delete the associated user if it exists
+		if (associatedUser != null) {
+			userRepository.deleteById(associatedUser.getId());
+		}
 	}
 
 	private StudentDTO toDTO(Student student) {

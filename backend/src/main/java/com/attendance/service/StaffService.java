@@ -7,16 +7,20 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.attendance.exception.ResourceNotFoundException;
 import com.attendance.model.Staff;
+import com.attendance.model.User;
 import com.attendance.repository.StaffRepository;
+import com.attendance.repository.UserRepository;
 
 @Service
 @Transactional
 public class StaffService {
 
     private final StaffRepository staffRepository;
+    private final UserRepository userRepository;
 
-    public StaffService(StaffRepository staffRepository) {
+    public StaffService(StaffRepository staffRepository, UserRepository userRepository) {
         this.staffRepository = staffRepository;
+        this.userRepository = userRepository;
     }
 
     public Staff save(Staff staff) {
@@ -47,9 +51,18 @@ public class StaffService {
     }
 
     public void delete(Long id) {
-        if (!staffRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Staff", "id", id);
-        }
+        Staff staff = staffRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Staff", "id", id));
+        
+        // Get the associated user before deleting staff
+        User associatedUser = staff.getUser();
+        
+        // Delete the staff first (due to foreign key constraint)
         staffRepository.deleteById(id);
+        
+        // Then delete the associated user if it exists
+        if (associatedUser != null) {
+            userRepository.deleteById(associatedUser.getId());
+        }
     }
 }
