@@ -1,88 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, Download, Users, TrendingUp, Clock, FileText, GraduationCap, AlertCircle, MapPin, Play, BookMarked } from 'lucide-react';
-import { MOCK_STUDENTS, MOCK_STAFF } from '../constants';
 import { UserRole } from '../types';
 import { getCurrentRole } from '../services/roles';
-
-// Student Identity: Alex Rivera
-const STUDENT_IDENTITY = {
-  id: 'cs_s_0',
-  rollNumber: 'CS-Y1-100',
-  name: 'Alex Rivera',
-  class: 'B.Sc Computer Science',
-  section: 'Year 1',
-  year: 'Year 1',
-  department: 'B.Sc Computer Science'
-};
-
-// Mock attendance data for Alex Rivera
-const ALEX_ATTENDANCE_DATA = [
-  { subject: 'Data Structures', attended: 34, total: 40, percentage: 85 },
-  { subject: 'Operating Systems', attended: 37, total: 40, percentage: 93 },
-  { subject: 'Database Management', attended: 32, total: 40, percentage: 80 },
-  { subject: 'Computer Networks', attended: 36, total: 40, percentage: 90 },
-  { subject: 'Software Engineering', attended: 38, total: 40, percentage: 95 },
-  { subject: 'Web Technologies', attended: 33, total: 40, percentage: 83 },
-];
-
-// Today's timetable from attendx_admin_master_timetable (read-only)
-const MASTER_TIMETABLE = {
-  Sunday: [],
-  Monday: [
-    { startTime: '08:00', endTime: '09:00', subject: 'Data Structures', faculty: 'Dr. Alan Turing', location: 'Room 301 - Block A' },
-    { startTime: '09:00', endTime: '10:00', subject: 'Operating Systems', faculty: 'Prof. John McCarthy', location: 'Room 302 - Block B' },
-    { startTime: '10:00', endTime: '11:00', subject: 'Database Management', faculty: 'Dr. Grace Hopper', location: 'Room 205 - Block A' },
-    { startTime: '11:00', endTime: '12:00', subject: 'Free Period', faculty: '-', location: '-' },
-    { startTime: '12:00', endTime: '13:00', subject: 'Computer Networks', faculty: 'Prof. Linus Torvalds', location: 'Room 410 - Block C' },
-    { startTime: '13:00', endTime: '14:00', subject: 'Software Engineering', faculty: 'Dr. Margaret Hamilton', location: 'Room 305 - Block B' },
-  ],
-  Tuesday: [
-    { startTime: '08:00', endTime: '09:00', subject: 'Web Technologies', faculty: 'Prof. Tim Berners-Lee', location: 'Room 201 - Block A' },
-    { startTime: '09:00', endTime: '10:00', subject: 'Data Structures Lab', faculty: 'Dr. Alan Turing', location: 'Lab 1 - Block D' },
-    { startTime: '10:00', endTime: '11:00', subject: 'Data Structures Lab', faculty: 'Dr. Alan Turing', location: 'Lab 1 - Block D' },
-    { startTime: '11:00', endTime: '12:00', subject: 'Institutional Break', faculty: '-', location: 'Cafeteria' },
-    { startTime: '12:00', endTime: '13:00', subject: 'Operating Systems', faculty: 'Prof. John McCarthy', location: 'Room 302 - Block B' },
-    { startTime: '13:00', endTime: '14:00', subject: 'Database Management', faculty: 'Dr. Grace Hopper', location: 'Room 205 - Block A' },
-  ],
-  Wednesday: [
-    { startTime: '08:00', endTime: '09:00', subject: 'Software Engineering', faculty: 'Dr. Margaret Hamilton', location: 'Room 305 - Block B' },
-    { startTime: '09:00', endTime: '10:00', subject: 'Computer Networks', faculty: 'Prof. Linus Torvalds', location: 'Room 410 - Block C' },
-    { startTime: '10:00', endTime: '11:00', subject: 'Web Technologies', faculty: 'Prof. Tim Berners-Lee', location: 'Room 201 - Block A' },
-    { startTime: '11:00', endTime: '12:00', subject: 'Data Structures', faculty: 'Dr. Alan Turing', location: 'Room 301 - Block A' },
-    { startTime: '12:00', endTime: '13:00', subject: 'Free Period', faculty: '-', location: '-' },
-    { startTime: '13:00', endTime: '14:00', subject: 'Operating Systems', faculty: 'Prof. John McCarthy', location: 'Room 302 - Block B' },
-  ],
-  Thursday: [
-    { startTime: '08:00', endTime: '09:00', subject: 'Database Management Lab', faculty: 'Dr. Grace Hopper', location: 'Lab 2 - Block D' },
-    { startTime: '09:00', endTime: '10:00', subject: 'Database Management Lab', faculty: 'Dr. Grace Hopper', location: 'Lab 2 - Block D' },
-    { startTime: '10:00', endTime: '11:00', subject: 'Software Engineering', faculty: 'Dr. Margaret Hamilton', location: 'Room 305 - Block B' },
-    { startTime: '11:00', endTime: '12:00', subject: 'Institutional Break', faculty: '-', location: 'Cafeteria' },
-    { startTime: '12:00', endTime: '13:00', subject: 'Computer Networks', faculty: 'Prof. Linus Torvalds', location: 'Room 410 - Block C' },
-    { startTime: '13:00', endTime: '14:00', subject: 'Web Technologies', faculty: 'Prof. Tim Berners-Lee', location: 'Room 201 - Block A' },
-  ],
-  Friday: [
-    { startTime: '08:00', endTime: '09:00', subject: 'Data Structures', faculty: 'Dr. Alan Turing', location: 'Room 301 - Block A' },
-    { startTime: '09:00', endTime: '10:00', subject: 'Operating Systems', faculty: 'Prof. John McCarthy', location: 'Room 302 - Block B' },
-    { startTime: '10:00', endTime: '11:00', subject: 'Database Management', faculty: 'Dr. Grace Hopper', location: 'Room 205 - Block A' },
-    { startTime: '11:00', endTime: '12:00', subject: 'Computer Networks', faculty: 'Prof. Linus Torvalds', location: 'Room 410 - Block C' },
-    { startTime: '12:00', endTime: '13:00', subject: 'Software Engineering', faculty: 'Dr. Margaret Hamilton', location: 'Room 305 - Block B' },
-    { startTime: '13:00', endTime: '14:00', subject: 'Free Period', faculty: '-', location: '-' },
-  ],
-  Saturday: [
-    { startTime: '08:00', endTime: '09:00', subject: 'Web Technologies Lab', faculty: 'Prof. Tim Berners-Lee', location: 'Lab 3 - Block D' },
-    { startTime: '09:00', endTime: '10:00', subject: 'Web Technologies Lab', faculty: 'Prof. Tim Berners-Lee', location: 'Lab 3 - Block D' },
-    { startTime: '10:00', endTime: '11:00', subject: 'Project Work', faculty: 'Dr. Margaret Hamilton', location: 'Project Lab - Block C' },
-    { startTime: '11:00', endTime: '12:00', subject: 'Project Work', faculty: 'Dr. Margaret Hamilton', location: 'Project Lab - Block C' },
-    { startTime: '12:00', endTime: '13:00', subject: 'Free Period', faculty: '-', location: '-' },
-    { startTime: '13:00', endTime: '14:00', subject: 'Free Period', faculty: '-', location: '-' },
-  ],
-};
+import { getStudentDashboard, StudentDashboard, SubjectAttendance, TimetableSlot } from '../services/studentDashboardService';
 
 // AttendanceDashboard Component (Student Only)
-const AttendanceDashboard: React.FC = () => {
-  const totalAttendance = Math.round(
-    ALEX_ATTENDANCE_DATA.reduce((acc, s) => acc + s.percentage, 0) / ALEX_ATTENDANCE_DATA.length
-  );
+interface AttendanceDashboardProps {
+  attendanceData: SubjectAttendance[];
+  overallPercentage: number;
+}
+
+const AttendanceDashboard: React.FC<AttendanceDashboardProps> = ({ attendanceData, overallPercentage }) => {
+  const totalAttendance = Math.round(overallPercentage);
 
   const circumference = 2 * Math.PI * 80;
   const offset = circumference - (totalAttendance / 100) * circumference;
@@ -129,27 +58,34 @@ const AttendanceDashboard: React.FC = () => {
       <div className="lg:col-span-2 bg-white p-10 rounded-[3.5rem] border border-slate-100 shadow-lg">
         <h3 className="text-3xl font-black text-slate-900 tracking-tighter mb-8">Subject Breakdown</h3>
         <div className="space-y-5">
-          {ALEX_ATTENDANCE_DATA.map((subject, idx) => (
-            <div key={idx} className="bg-slate-50 p-6 rounded-[2rem] border border-slate-100 hover:border-indigo-200 transition-all">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex-1">
-                  <h4 className="font-black text-slate-800 text-base tracking-tight">{subject.subject}</h4>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
-                    {subject.attended}/{subject.total} Classes
-                  </p>
-                </div>
-                <span className={`text-3xl font-black ${subject.percentage >= 75 ? 'text-indigo-600' : 'text-red-600'}`}>
-                  {subject.percentage}%
-                </span>
-              </div>
-              <div className="w-full h-2.5 bg-slate-200 rounded-full overflow-hidden">
-                <div 
-                  className={`h-full rounded-full transition-all duration-700 ${subject.percentage >= 75 ? 'bg-indigo-600' : 'bg-red-600'}`}
-                  style={{ width: `${subject.percentage}%` }}
-                />
-              </div>
+          {attendanceData.length === 0 ? (
+            <div className="text-center py-16 text-slate-400">
+              <AlertCircle className="w-16 h-16 mx-auto mb-4 opacity-30" />
+              <p className="font-bold text-lg">No attendance data available</p>
             </div>
-          ))}
+          ) : (
+            attendanceData.map((subject, idx) => (
+              <div key={idx} className="bg-slate-50 p-6 rounded-[2rem] border border-slate-100 hover:border-indigo-200 transition-all">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex-1">
+                    <h4 className="font-black text-slate-800 text-base tracking-tight">{subject.subject}</h4>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
+                      {subject.attended}/{subject.total} Classes
+                    </p>
+                  </div>
+                  <span className={`text-3xl font-black ${subject.percentage >= 75 ? 'text-indigo-600' : 'text-red-600'}`}>
+                    {Math.round(subject.percentage)}%
+                  </span>
+                </div>
+                <div className="w-full h-2.5 bg-slate-200 rounded-full overflow-hidden">
+                  <div 
+                    className={`h-full rounded-full transition-all duration-700 ${subject.percentage >= 75 ? 'bg-indigo-600' : 'bg-red-600'}`}
+                    style={{ width: `${subject.percentage}%` }}
+                  />
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </div>
     </div>
@@ -159,6 +95,11 @@ const AttendanceDashboard: React.FC = () => {
 const StudentPortal: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'timetable' | 'faculty' | 'reports'>('dashboard');
   const [reportPeriod, setReportPeriod] = useState<'semester' | 'yearly'>('semester');
+  
+  // State for dashboard data
+  const [dashboardData, setDashboardData] = useState<StudentDashboard | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
   
   // CRITICAL: Verify student role
   const currentRole = getCurrentRole();
@@ -170,18 +111,30 @@ const StudentPortal: React.FC = () => {
       localStorage.removeItem('attendx_admin_period_timings');
       localStorage.removeItem('attendx_admin_break_timings');
       console.log('Student Portal: Admin cache cleared');
+      
+      // Fetch dashboard data
+      fetchDashboardData();
     }
   }, [currentRole]);
+  
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await getStudentDashboard();
+      setDashboardData(data);
+    } catch (err: any) {
+      console.error('Failed to fetch student dashboard:', err);
+      setError(err.response?.data?.message || 'Failed to load dashboard data');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  // Get today's schedule from master timetable (read-only)
+  // Get today's schedule from timetable
   const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   const today = days[new Date().getDay()];
-  const todaySchedule = MASTER_TIMETABLE[today as keyof typeof MASTER_TIMETABLE] || [];
-
-  // Get department faculty (read-only)
-  const departmentFaculty = MOCK_STAFF.filter(
-    f => f.department === STUDENT_IDENTITY.department && f.year === STUDENT_IDENTITY.year
-  );
+  const todaySchedule: TimetableSlot[] = dashboardData?.weeklyTimetable?.[today] || [];
 
   // Check if a period is currently live
   const isPeriodLive = (startTime: string, endTime: string): boolean => {
@@ -200,7 +153,8 @@ const StudentPortal: React.FC = () => {
 
   // PDF Download Handler
   const handleDownloadReport = () => {
-    alert(`Generating ${reportPeriod === 'semester' ? 'Semester' : 'Yearly'} Report...\n\nStudent: ${STUDENT_IDENTITY.name}\nRoll: ${STUDENT_IDENTITY.rollNumber}\nClass: ${STUDENT_IDENTITY.class}\nAttendance: ${Math.round(ALEX_ATTENDANCE_DATA.reduce((acc, s) => acc + s.percentage, 0) / ALEX_ATTENDANCE_DATA.length)}%`);
+    if (!dashboardData) return;
+    alert(`Generating ${reportPeriod === 'semester' ? 'Semester' : 'Yearly'} Report...\n\nStudent: ${dashboardData.identity.name}\nRoll: ${dashboardData.identity.rollNumber}\nClass: ${dashboardData.identity.className}\nAttendance: ${Math.round(dashboardData.overallAttendancePercentage)}%`);
   };
 
   // CRITICAL: Student-only rendering
@@ -215,11 +169,40 @@ const StudentPortal: React.FC = () => {
       </div>
     );
   }
+  
+  // Loading state
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-slate-600 font-bold">Loading your dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+  
+  // Error state
+  if (error || !dashboardData) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <AlertCircle className="w-16 h-16 text-red-600 mx-auto mb-4" />
+          <h2 className="text-2xl font-black text-slate-900">Error Loading Dashboard</h2>
+          <p className="text-slate-600 mt-2">{error || 'Failed to load dashboard data'}</p>
+          <button 
+            onClick={fetchDashboardData}
+            className="mt-4 px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // Calculate overall attendance percentage
-  const overallAttendance = Math.round(
-    ALEX_ATTENDANCE_DATA.reduce((acc, s) => acc + s.percentage, 0) / ALEX_ATTENDANCE_DATA.length
-  );
+  const overallAttendance = Math.round(dashboardData.overallAttendancePercentage);
 
   return (
     <div className="space-y-10 animate-in fade-in duration-500 pb-16 max-w-[1600px] mx-auto" key={currentRole}>
@@ -232,18 +215,18 @@ const StudentPortal: React.FC = () => {
                 <GraduationCap className="w-10 h-10 text-white" />
               </div>
               <div>
-                <h2 className="text-3xl font-black text-white tracking-tight">{STUDENT_IDENTITY.name}</h2>
-                <p className="text-indigo-200 font-bold text-sm mt-1">Matric Number: {STUDENT_IDENTITY.rollNumber}</p>
+                <h2 className="text-3xl font-black text-white tracking-tight">{dashboardData.identity.name}</h2>
+                <p className="text-indigo-200 font-bold text-sm mt-1">Matric Number: {dashboardData.identity.rollNumber}</p>
               </div>
             </div>
             <div className="flex items-center gap-6 mt-4">
               <div className="flex items-center gap-2">
                 <BookMarked className="w-4 h-4 text-indigo-300" />
-                <span className="text-sm font-medium text-indigo-200">{STUDENT_IDENTITY.class}</span>
+                <span className="text-sm font-medium text-indigo-200">{dashboardData.identity.className}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Users className="w-4 h-4 text-indigo-300" />
-                <span className="text-sm font-medium text-indigo-200">{STUDENT_IDENTITY.section}</span>
+                <span className="text-sm font-medium text-indigo-200">{dashboardData.identity.section}</span>
               </div>
             </div>
           </div>
@@ -278,11 +261,11 @@ const StudentPortal: React.FC = () => {
         <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm">
           <div className="flex items-center gap-4">
             <div className="w-11 h-11 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center font-black text-indigo-600 text-lg">
-              {STUDENT_IDENTITY.name.charAt(0)}
+              {dashboardData.identity.name.charAt(0)}
             </div>
             <div>
-              <h3 className="font-black text-slate-800 tracking-tight">{STUDENT_IDENTITY.name}</h3>
-              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{STUDENT_IDENTITY.rollNumber}</p>
+              <h3 className="font-black text-slate-800 tracking-tight">{dashboardData.identity.name}</h3>
+              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{dashboardData.identity.rollNumber}</p>
             </div>
           </div>
         </div>
@@ -317,7 +300,12 @@ const StudentPortal: React.FC = () => {
       </div>
 
       {/* Dashboard Tab */}
-      {activeTab === 'dashboard' && <AttendanceDashboard />}
+      {activeTab === 'dashboard' && (
+        <AttendanceDashboard 
+          attendanceData={dashboardData.subjectAttendance} 
+          overallPercentage={dashboardData.overallAttendancePercentage} 
+        />
+      )}
 
       {/* My Timetable Tab - Vertical Card List */}
       {activeTab === 'timetable' && (
@@ -415,7 +403,7 @@ const StudentPortal: React.FC = () => {
             <div>
               <h3 className="text-4xl font-black text-slate-900 tracking-tighter">Department Faculty</h3>
               <p className="text-sm text-slate-500 font-bold mt-2 uppercase tracking-widest">
-                {STUDENT_IDENTITY.department} • {STUDENT_IDENTITY.year}
+                {dashboardData.identity.department} • {dashboardData.identity.year}
               </p>
             </div>
             <div className="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center border border-indigo-100 text-indigo-600">
@@ -423,25 +411,10 @@ const StudentPortal: React.FC = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {departmentFaculty.map((faculty) => (
-              <div key={faculty.id} className="bg-slate-50 p-7 rounded-[2.5rem] border border-slate-100 hover:border-indigo-200 hover:shadow-lg transition-all">
-                <div className="flex items-center gap-5 mb-5">
-                  <div className="w-14 h-14 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-black text-xl border-2 border-white shadow-md">
-                    {faculty.name.split(' ').map(n => n[0]).join('')}
-                  </div>
-                  <div className="flex-1">
-                    <h4 className="font-black text-slate-800 tracking-tight">{faculty.name}</h4>
-                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">
-                      {faculty.subject}
-                    </p>
-                  </div>
-                </div>
-                <div className="text-sm text-slate-600 font-bold bg-white p-3 rounded-xl border border-slate-100">
-                  ✉️ {faculty.email}
-                </div>
-              </div>
-            ))}
+          <div className="text-center py-16 text-slate-400">
+            <Users className="w-16 h-16 mx-auto mb-4 opacity-30" />
+            <p className="font-bold text-lg">Faculty directory coming soon</p>
+            <p className="text-sm mt-2">Contact your class coordinator for faculty information</p>
           </div>
         </div>
       )}
@@ -493,15 +466,15 @@ const StudentPortal: React.FC = () => {
               <div className="space-y-3">
                 <div className="flex justify-between py-3 border-b border-slate-200">
                   <span className="font-bold text-slate-600">Student</span>
-                  <span className="font-black text-slate-900">{STUDENT_IDENTITY.name}</span>
+                  <span className="font-black text-slate-900">{dashboardData.identity.name}</span>
                 </div>
                 <div className="flex justify-between py-3 border-b border-slate-200">
                   <span className="font-bold text-slate-600">Roll Number</span>
-                  <span className="font-black text-slate-900">{STUDENT_IDENTITY.rollNumber}</span>
+                  <span className="font-black text-slate-900">{dashboardData.identity.rollNumber}</span>
                 </div>
                 <div className="flex justify-between py-3 border-b border-slate-200">
                   <span className="font-bold text-slate-600">Class</span>
-                  <span className="font-black text-slate-900">{STUDENT_IDENTITY.class}</span>
+                  <span className="font-black text-slate-900">{dashboardData.identity.className}</span>
                 </div>
                 <div className="flex justify-between py-3">
                   <span className="font-bold text-slate-600">Period</span>
