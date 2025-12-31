@@ -141,8 +141,63 @@ coverage/
 *.rej
 
 # ==========================================
-# DOCUMENTATION (Optional - Keep if public)
+# DOCUMENTATION & UNNECESSARY FILES
 # ==========================================
-# Uncomment if you don't want to commit docs
-# docs/generated/
-# *.pdf
+# Archive folder
+archive/
+
+# Documentation files (keep only README.md)
+DATABASE_SECURITY_COMPLETE.md
+GITHUB_PUSH_GUIDE.md
+GITHUB_SETUP_COMPLETE.md
+QUICKSTART_TEST_NOW.md
+TIMETABLE_ATTENDANCE_IMPLEMENTATION.md
+TIMETABLE_SYNC_IMPLEMENTATION.md
+backend/API_DOCUMENTATION.md
+backend/IMPLEMENTATION_STATUS.md
+
+# Test files
+test-roles.html
+scripts/test-security-fixes.ps1
+scripts/test-verification.ps1
+
+# Setup scripts
+setup-github.ps1
+seed-database.bat
+seed-database-clean.bat
+seed-database-direct.ps1
+run-seed-data.ps1
+
+# Docker files (if not using Docker)
+docker-compose.yml
+backend/Dockerfile
+frontend/Dockerfile
+
+# Git configuration files
+.gitconfig
+.gitattributes
+
+# Duplicate scripts
+backend/start-backend.ps1
+
+# Unknown files
+frontend/0
+
+# ==========================================
+# ENVIRONMENT VARIABLES & SECRETS
+# ==========================================
+# Environment files
+.env
+.env.*
+*.env
+backend/.env
+frontend/.env
+backend/.env.*
+frontend/.env.*
+
+# Environment variable files
+.env.local
+.env.development
+.env.test
+.env.production
+.env.staging

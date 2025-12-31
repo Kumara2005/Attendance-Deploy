@@ -65,13 +65,3 @@ export interface AuditLog {
   timestamp: string;
   details: string;
 }
-
-// Added Circular interface for communication module
-export interface Circular {
-  id: string;
-  title: string;
-  description: string;
-  date: string;
-  type: 'General' | 'Holiday' | 'Academic';
-  publishedAt: string;
-}

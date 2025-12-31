@@ -65,8 +65,8 @@ const Dashboard: React.FC = () => {
             section: dashboardData.identity.section,
             year: dashboardData.identity.year,
             attendancePercentage: Math.round(dashboardData.overallAttendancePercentage), // Round to nearest integer
-            status: dashboardData.overallAttendancePercentage >= 75 ? 'good' : 'warning'
-          };
+            // Change 'warning' to 'Inactive'
+            status: dashboardData.overallAttendancePercentage >= 75 ? 'Active' : 'Inactive'          };
           
           setStudentData(mappedStudent);
           console.log('Student dashboard data loaded:', mappedStudent);

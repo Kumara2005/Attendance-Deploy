@@ -1,5 +1,5 @@
 
-import { Student, ClassOverview, UserRole, User, Circular } from './types';
+import { Student, ClassOverview, UserRole, User } from './types';
 
 export const MOCK_ADMIN: User = {
   id: 'u1',
@@ -139,32 +139,4 @@ export const SUBJECT_WISE_SUMMARY = [
   { subject: 'CS', attendance: 88 },
   { subject: 'English', attendance: 95 },
   { subject: 'History', attendance: 70 },
-];
-
-// Mock circulars for the Official Communication module
-export const MOCK_CIRCULARS: Circular[] = [
-  {
-    id: 'c1',
-    title: 'Semester Final Examinations',
-    description: 'The final examinations for the Spring 2024 semester will commence from June 15th. Detailed schedule will be released shortly.',
-    date: '2024-06-15',
-    type: 'Academic',
-    publishedAt: '2024-05-20'
-  },
-  {
-    id: 'c2',
-    title: 'Summer Vacation Announcement',
-    description: 'The institution will remain closed for summer break from July 1st to July 31st. Classes will resume on August 1st.',
-    date: '2024-07-01',
-    type: 'Holiday',
-    publishedAt: '2024-05-18'
-  },
-  {
-    id: 'c3',
-    title: 'Guest Lecture: AI in Education',
-    description: 'Join us for an insightful guest lecture on the impact of AI in modern education systems by Dr. Alan Turing Jr.',
-    date: '2024-05-28',
-    type: 'General',
-    publishedAt: '2024-05-22'
-  }
 ];
