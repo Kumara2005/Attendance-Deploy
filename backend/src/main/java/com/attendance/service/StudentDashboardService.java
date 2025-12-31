@@ -98,9 +98,14 @@ public class StudentDashboardService {
     public WeeklyTimetableDTO getStudentTimetable(String username) {
         Student student = findStudentByUsername(username);
         
+        System.out.println("DEBUG: Fetching weekly timetable for: " + student.getName());
+        System.out.println("DEBUG: Department: " + student.getDepartment() + ", Semester: " + student.getSemester());
+        
         // Get all timetable sessions for this student's department and semester
         List<TimetableSession> sessions = timetableRepository
             .findByDepartmentAndSemesterAndActiveTrue(student.getDepartment(), student.getSemester());
+        
+        System.out.println("DEBUG: Found " + sessions.size() + " total sessions");
         
         // Group by day of week
         Map<String, List<TimetableSlotDTO>> schedule = new LinkedHashMap<>();
@@ -114,6 +119,7 @@ public class StudentDashboardService {
         // Populate schedule
         for (TimetableSession session : sessions) {
             String day = session.getDayOfWeek();
+            System.out.println("DEBUG: Session day: " + day + ", Subject: " + session.getSubjectName());
             // Ensure the day exists in schedule (handle case variations)
             if (!schedule.containsKey(day)) {
                 schedule.put(day, new ArrayList<>());
@@ -146,9 +152,16 @@ public class StudentDashboardService {
         String today = LocalDate.now().getDayOfWeek()
             .getDisplayName(TextStyle.FULL, Locale.ENGLISH);
         
+        System.out.println("DEBUG: Fetching timetable for student: " + student.getName());
+        System.out.println("DEBUG: Department: " + student.getDepartment());
+        System.out.println("DEBUG: Semester: " + student.getSemester());
+        System.out.println("DEBUG: Today: " + today);
+        
         List<TimetableSession> todaySessions = timetableRepository
             .findByDepartmentAndSemesterAndDayOfWeekAndActiveTrue(
                 student.getDepartment(), student.getSemester(), today);
+        
+        System.out.println("DEBUG: Found " + todaySessions.size() + " sessions");
         
         return todaySessions.stream()
             .sorted(Comparator.comparing(TimetableSession::getStartTime))
