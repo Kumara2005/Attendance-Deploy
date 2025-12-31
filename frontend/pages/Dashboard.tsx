@@ -165,30 +165,56 @@ const AdminDashboard = () => {
   const navigate = useNavigate();
   const [programmeFilter, setProgrammeFilter] = useState('All Programmes');
   const [programmes, setProgrammes] = useState<any[]>([]);
+  const [classes, setClasses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // ✨ NEW: Fetch real programmes data from backend
+  // ✨ Fetch real programmes and classes data from backend
   useEffect(() => {
-    const fetchProgrammes = async () => {
+    const fetchData = async () => {
       try {
         setLoading(true);
-        const response = await apiClient.get('/admin/dashboard/programmes');
-        const programmesData = response.data.data || [];
-        setProgrammes(programmesData);
-        console.log('✅ Loaded programmes from database:', programmesData);
-      } catch (error) {
-        console.error('Error fetching programmes:', error);
-        // Fallback to mock data
-        setProgrammes(MOCK_CLASSES);
+        
+        // Fetch programmes
+        try {
+          const programmesResponse = await apiClient.get('/admin/dashboard/programmes');
+          const programmesData = programmesResponse.data.data || [];
+          setProgrammes(programmesData);
+          console.log('✅ Loaded programmes from database:', programmesData);
+        } catch (error) {
+          console.error('Error fetching programmes:', error);
+          setProgrammes([]);
+        }
+
+        // Fetch classes
+        try {
+          const classesResponse = await apiClient.get('/admin/classes');
+          const classesData = classesResponse.data.data || [];
+          setClasses(classesData);
+          console.log('✅ Loaded classes from database:', classesData);
+        } catch (error) {
+          console.error('Error fetching classes:', error);
+          setClasses([]);
+        }
       } finally {
         setLoading(false);
       }
     };
     
-    fetchProgrammes();
+    fetchData();
   }, []);
 
-  const filteredProgrammes = programmes.filter(p => 
+  // Combine programmes and classes for display
+  const displayData = programmes.length > 0 ? programmes : classes.map(c => ({
+    name: `${c.className} - ${c.section}`,
+    department: c.department,
+    studentCount: 0,
+    averageAttendance: 0,
+    year: c.year,
+    semester: c.semester,
+    isClass: true
+  }));
+
+  const filteredProgrammes = displayData.filter(p => 
     programmeFilter === 'All Programmes' || 
     p.name?.includes(programmeFilter) ||
     p.department?.includes(programmeFilter)
@@ -255,8 +281,10 @@ const AdminDashboard = () => {
           ))
         ) : (
           // No data
-          <div className="col-span-full text-center py-20 bg-slate-50 rounded-[2rem] border border-slate-100">
-            <p className="text-slate-500 font-medium">No programmes found</p>
+          <div className="col-span-full text-center py-20 bg-slate-50 rounded-[2rem] border border-dashed border-slate-200">
+            <GraduationCap className="w-12 h-12 text-slate-300 mx-auto mb-4" />
+            <p className="text-slate-500 font-medium">No programmes or classes found</p>
+            <p className="text-slate-400 text-sm mt-2">Create classes in Settings → Classes Management to get started</p>
           </div>
         )}
       </div>

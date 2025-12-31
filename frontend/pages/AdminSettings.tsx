@@ -617,6 +617,5 @@ const AdminSettings: React.FC = () => {
     </div>
   );
 };
-};
 
 export default AdminSettings;
