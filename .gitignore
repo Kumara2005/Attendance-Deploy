@@ -170,7 +170,7 @@ run-seed-data.ps1
 
 # Docker files (if not using Docker)
 docker-compose.yml
-backend/Dockerfile
+#backend/Dockerfile
 frontend/Dockerfile
 
 # Git configuration files
