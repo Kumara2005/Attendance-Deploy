@@ -204,7 +204,7 @@ const StudentManagement: React.FC<StudentManagementProps> = ({ userRole }) => {
             name: data.name,
             rollNo: data.rollNumber,
             department: data.class,
-            semester: 1,
+            semester: parseInt(data.section) || 1,
             section: data.section || 'Year 1',
             status: 'ACTIVE',
           };
