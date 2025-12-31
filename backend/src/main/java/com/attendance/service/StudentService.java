@@ -3,22 +3,29 @@ package com.attendance.service;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.attendance.dto.StudentDTO;
 import com.attendance.exception.ResourceNotFoundException;
 import com.attendance.model.Student;
+import com.attendance.model.User;
 import com.attendance.repository.StudentRepository;
+import com.attendance.repository.UserRepository;
 
 @Service
 @Transactional
 public class StudentService {
 
 	private final StudentRepository repo;
+	private final UserRepository userRepository;
+	private final PasswordEncoder passwordEncoder;
 
-	public StudentService(StudentRepository repo) {
+	public StudentService(StudentRepository repo, UserRepository userRepository, PasswordEncoder passwordEncoder) {
 		this.repo = repo;
+		this.userRepository = userRepository;
+		this.passwordEncoder = passwordEncoder;
 	}
 
 	public Student save(Student s) {
@@ -31,6 +38,23 @@ public class StudentService {
 
 	public StudentDTO saveDTO(StudentDTO studentDTO) {
 		Student student = toEntity(studentDTO);
+		
+		// Create User account automatically with roll number as password
+		try {
+			User user = new User();
+			user.setUsername(studentDTO.getRollNo()); // Roll number as username
+			user.setPassword(passwordEncoder.encode(studentDTO.getRollNo())); // Roll number as password (hashed)
+			user.setRole("STUDENT");
+			user.setEnabled(true);
+			User savedUser = userRepository.save(user);
+			
+			// Link student to user
+			student.setUser(savedUser);
+		} catch (Exception e) {
+			// If user creation fails, log but continue - student will be created without user
+			System.err.println("Warning: Could not create user account for student: " + e.getMessage());
+		}
+		
 		Student saved = repo.save(student);
 		return toDTO(saved);
 	}
