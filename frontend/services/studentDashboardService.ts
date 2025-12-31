@@ -1,4 +1,4 @@
-import { apiClient } from './api';
+import apiClient from './api';
 
 /**
  * Student Dashboard Service
@@ -44,36 +44,36 @@ export interface StudentDashboard {
 
 /**
  * Fetch complete student dashboard
- * GET /api/student/dashboard
+ * GET /student/dashboard
  */
 export const getStudentDashboard = async (): Promise<StudentDashboard> => {
-  const response = await apiClient.get<{ data: StudentDashboard }>('/api/student/dashboard');
+  const response = await apiClient.get<{ data: StudentDashboard }>('/student/dashboard');
   return response.data.data;
 };
 
 /**
  * Fetch only attendance data
- * GET /api/student/dashboard/attendance
+ * GET /student/dashboard/attendance
  */
 export const getStudentAttendance = async (): Promise<SubjectAttendance[]> => {
-  const response = await apiClient.get<{ data: SubjectAttendance[] }>('/api/student/dashboard/attendance');
+  const response = await apiClient.get<{ data: SubjectAttendance[] }>('/student/dashboard/attendance');
   return response.data.data;
 };
 
 /**
  * Fetch weekly timetable
- * GET /api/student/dashboard/timetable
+ * GET /student/dashboard/timetable
  */
 export const getStudentTimetable = async (): Promise<WeeklyTimetable> => {
-  const response = await apiClient.get<{ data: WeeklyTimetable }>('/api/student/dashboard/timetable');
+  const response = await apiClient.get<{ data: WeeklyTimetable }>('/student/dashboard/timetable');
   return response.data.data;
 };
 
 /**
  * Fetch today's timetable only
- * GET /api/student/dashboard/timetable/today
+ * GET /student/dashboard/timetable/today
  */
 export const getTodayTimetable = async (): Promise<TimetableSlot[]> => {
-  const response = await apiClient.get<{ data: TimetableSlot[] }>('/api/student/dashboard/timetable/today');
+  const response = await apiClient.get<{ data: TimetableSlot[] }>('/student/dashboard/timetable/today');
   return response.data.data;
 };
