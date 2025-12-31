@@ -32,6 +32,15 @@ public interface TimetableSessionRepository
     List<TimetableSession> findByDepartmentAndSemesterAndDayOfWeekAndActiveTrue(
             String department, int semester, String dayOfWeek);
     
+    // Case-insensitive day of week query
+    @Query("SELECT ts FROM TimetableSession ts WHERE ts.department = :department " +
+           "AND ts.semester = :semester AND LOWER(ts.dayOfWeek) = LOWER(:dayOfWeek) " +
+           "AND ts.active = true ORDER BY ts.startTime")
+    List<TimetableSession> findByDepartmentAndSemesterAndDayOfWeekIgnoreCaseAndActiveTrue(
+            @Param("department") String department, 
+            @Param("semester") int semester, 
+            @Param("dayOfWeek") String dayOfWeek);
+    
     List<TimetableSession> findByStaffAndDayOfWeekAndActiveTrue(Staff staff, String dayOfWeek);
     
     List<TimetableSession> findByStaffIdAndActiveTrue(Long staffId);

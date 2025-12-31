@@ -157,8 +157,9 @@ public class StudentDashboardService {
         System.out.println("DEBUG: Semester: " + student.getSemester());
         System.out.println("DEBUG: Today: " + today);
         
+        // Use case-insensitive query to handle TUESDAY vs Tuesday
         List<TimetableSession> todaySessions = timetableRepository
-            .findByDepartmentAndSemesterAndDayOfWeekAndActiveTrue(
+            .findByDepartmentAndSemesterAndDayOfWeekIgnoreCaseAndActiveTrue(
                 student.getDepartment(), student.getSemester(), today);
         
         System.out.println("DEBUG: Found " + todaySessions.size() + " sessions");
