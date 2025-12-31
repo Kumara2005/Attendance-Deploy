@@ -18,6 +18,7 @@ import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/admin/staff")
+@CrossOrigin(origins = {"http://localhost:3000", "http://localhost:3007", "http://localhost:5173"})
 public class StaffController {
 
     private final StaffRepository staffRepo;
