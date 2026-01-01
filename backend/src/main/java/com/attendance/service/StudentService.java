@@ -75,6 +75,12 @@ public class StudentService {
 				.collect(Collectors.toList());
 	}
 
+	public List<StudentDTO> getByDepartmentSemesterSection(String department, Integer semester, String section) {
+		return repo.findByDepartmentAndSemesterAndSectionAndActiveTrue(department, semester, section).stream()
+				.map(this::toDTO)
+				.collect(Collectors.toList());
+	}
+
 	public StudentDTO getById(Long id) {
 		Student student = repo.findById(id)
 				.orElseThrow(() -> new ResourceNotFoundException("Student", "id", id));

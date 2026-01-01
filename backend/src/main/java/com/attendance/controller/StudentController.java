@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.attendance.dto.ApiResponse;
@@ -42,8 +43,17 @@ public class StudentController {
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
-    public ResponseEntity<ApiResponse<List<StudentDTO>>> getAll() {
-        List<StudentDTO> students = service.getAllDTO();
+    public ResponseEntity<ApiResponse<List<StudentDTO>>> getAll(
+            @RequestParam(required = false) String department,
+            @RequestParam(required = false) Integer semester,
+            @RequestParam(required = false) String section) {
+        
+        List<StudentDTO> students;
+        if (department != null && semester != null && section != null) {
+            students = service.getByDepartmentSemesterSection(department, semester, section);
+        } else {
+            students = service.getAllDTO();
+        }
         return ResponseEntity.ok(ApiResponse.success(students));
     }
 
