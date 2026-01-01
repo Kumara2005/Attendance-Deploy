@@ -272,23 +272,23 @@ const Reports: React.FC = () => {
                     <td className="px-10 py-6">
                       <div className="flex items-center gap-4">
                          <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-black text-sm">
-                           {student.studentName.charAt(0)}
+                           {(student.studentName || 'Unknown').charAt(0).toUpperCase()}
                          </div>
                          <div className="flex flex-col">
-                           <div className="font-black text-slate-900 text-sm">{student.studentName}</div>
-                           <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{student.rollNumber}</div>
+                           <div className="font-black text-slate-900 text-sm">{student.studentName || 'Unknown Student'}</div>
+                           <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{student.rollNumber || 'N/A'}</div>
                          </div>
                       </div>
                     </td>
-                    <td className="px-10 py-6 text-sm font-bold text-slate-500">{student.year}</td>
-                    <td className="px-10 py-6 text-sm font-bold text-slate-500">{student.totalSessions}</td>
-                    <td className="px-10 py-6 text-sm font-black text-emerald-600">{student.presentSessions}</td>
-                    <td className="px-10 py-6 font-black text-slate-900">{Math.round(student.attendancePercentage)}%</td>
+                    <td className="px-10 py-6 text-sm font-bold text-slate-500">{student.year || '-'}</td>
+                    <td className="px-10 py-6 text-sm font-bold text-slate-500">{student.totalSessions || 0}</td>
+                    <td className="px-10 py-6 text-sm font-black text-emerald-600">{student.presentSessions || 0}</td>
+                    <td className="px-10 py-6 font-black text-slate-900">{Math.round(student.attendancePercentage || 0)}%</td>
                     <td className="px-10 py-6">
                        <div className={`inline-flex px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest ${
-                         student.complianceStatus === 'Qualified' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'
+                         (student.complianceStatus || 'Not Determined') === 'Qualified' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'
                        }`}>
-                          {student.complianceStatus}
+                          {student.complianceStatus || 'Not Determined'}
                        </div>
                     </td>
                   </tr>
