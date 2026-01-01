@@ -5,6 +5,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import java.util.List;
 
 /**
  * Database Initializer
@@ -27,6 +28,7 @@ public class DatabaseInitializer implements CommandLineRunner {
         
         try {
             applyAttendanceConstraintsMigration();
+            mergeDuplicateComputerNetworksSubjects();
             assignExistingStaffToTimetableSessions();
             logger.info("✅ Database initialization completed successfully");
         } catch (Exception e) {
@@ -207,6 +209,77 @@ public class DatabaseInitializer implements CommandLineRunner {
         } catch (Exception e) {
             logger.warn("⚠️  Non-critical error during staff assignment: " + e.getMessage());
             // Don't throw - this is a convenience feature, not critical
+        }
+    }
+
+    /**
+     * Merge duplicate "COMPUTER NETWORKS" subjects (e.g., ids 2 and 9) into a single canonical id.
+     * This keeps timetable_session and staff_subjects aligned so auto-assignment works for all staff.
+     * Safe to run repeatedly; only acts when multiple rows exist for the same trimmed/upper name.
+     */
+    private void mergeDuplicateComputerNetworksSubjects() {
+        try {
+            // Find a canonical subject id for COMPUTER NETWORKS (trim + upper)
+            Long canonicalId = jdbcTemplate.queryForObject(
+                "SELECT MIN(id) FROM subject WHERE UPPER(TRIM(name)) = 'COMPUTER NETWORKS'",
+                Long.class
+            );
+
+            if (canonicalId == null) {
+                logger.info("ℹ️  No COMPUTER NETWORKS subject found; skipping duplicate merge.");
+                return;
+            }
+
+            // Find duplicate ids (excluding canonical)
+            List<Long> dupIds = jdbcTemplate.query(
+                "SELECT id FROM subject WHERE UPPER(TRIM(name)) = 'COMPUTER NETWORKS' AND id <> ?",
+                (rs, rowNum) -> rs.getLong(1),
+                canonicalId
+            );
+
+            if (dupIds.isEmpty()) {
+                logger.info("ℹ️  No duplicate COMPUTER NETWORKS subjects detected; nothing to merge.");
+                return;
+            }
+
+            logger.info("🔗 Merging duplicate COMPUTER NETWORKS subjects into canonical id {}: {}", canonicalId, dupIds);
+
+            // Repoint timetable_session
+            int tsUpdated = jdbcTemplate.update(
+                String.format(
+                    "UPDATE timetable_session SET subject_id = %d WHERE subject_id IN (%s)",
+                    canonicalId,
+                    dupIds.stream().map(String::valueOf).reduce((a, b) -> a + "," + b).orElse("0")
+                )
+            );
+
+            // Repoint staff_subjects
+            int ssUpdated = jdbcTemplate.update(
+                String.format(
+                    "UPDATE staff_subjects SET subject_id = %d WHERE subject_id IN (%s)",
+                    canonicalId,
+                    dupIds.stream().map(String::valueOf).reduce((a, b) -> a + "," + b).orElse("0")
+                )
+            );
+
+            // Normalize staff.subject text
+            int staffUpdated = jdbcTemplate.update(
+                "UPDATE staff SET subject = 'COMPUTER NETWORKS' WHERE subject LIKE '%COMPUTER NETWORKS%'"
+            );
+
+            // Delete duplicate subject rows
+            int deleted = jdbcTemplate.update(
+                String.format(
+                    "DELETE FROM subject WHERE id IN (%s)",
+                    dupIds.stream().map(String::valueOf).reduce((a, b) -> a + "," + b).orElse("0")
+                )
+            );
+
+            logger.info("✅ Merge complete. timetable_session updated: {}, staff_subjects updated: {}, staff text normalized: {}, duplicates deleted: {}",
+                        tsUpdated, ssUpdated, staffUpdated, deleted);
+
+        } catch (Exception e) {
+            logger.warn("⚠️  Non-critical error during duplicate subject merge: " + e.getMessage());
         }
     }
 }
