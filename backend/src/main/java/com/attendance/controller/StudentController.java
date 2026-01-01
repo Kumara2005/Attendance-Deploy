@@ -32,8 +32,12 @@ public class StudentController {
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<StudentDTO>> add(@Valid @RequestBody StudentDTO studentDTO) {
-        StudentDTO saved = service.saveDTO(studentDTO);
-        return ResponseEntity.ok(ApiResponse.success("Student added successfully", saved));
+        try {
+            StudentDTO saved = service.saveDTO(studentDTO);
+            return ResponseEntity.ok(ApiResponse.success("Student added successfully", saved));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
     }
 
     @GetMapping

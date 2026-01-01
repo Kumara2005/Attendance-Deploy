@@ -88,9 +88,8 @@ public class AdminDashboardService {
     // ========== HELPER METHODS ==========
 
     private Double calculateDepartmentAttendance(String department) {
-        // For now, return a default value of 0.0
-        // In production, this would calculate average attendance from SessionAttendance records
-        return 0.0;
+        Double avg = attendanceRepository.calculateAverageAttendanceByDepartment(department);
+        return avg != null ? Math.round(avg * 100.0) / 100.0 : 0.0;
     }
 
     private Integer calculateTotalClasses() {

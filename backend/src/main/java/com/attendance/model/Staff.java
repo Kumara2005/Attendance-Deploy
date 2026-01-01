@@ -21,6 +21,17 @@ public class Staff {
     @Column(nullable = false)
     private String department;
 
+    @Column(length = 100)
+    private String subject;
+
+    @Column(length = 20)
+    private String phone;
+
+    @Column(length = 100)
+    private String qualification;
+
+    private Integer experience;
+
     // One staff has one login user
     @OneToOne
     @JoinColumn(name = "user_id", nullable = false)
@@ -77,6 +88,38 @@ public class Staff {
         this.department = department;
     }
 
+    public String getSubject() {
+        return subject;
+    }
+
+    public void setSubject(String subject) {
+        this.subject = subject;
+    }
+
+    public String getPhone() {
+        return phone;
+    }
+
+    public void setPhone(String phone) {
+        this.phone = phone;
+    }
+
+    public String getQualification() {
+        return qualification;
+    }
+
+    public void setQualification(String qualification) {
+        this.qualification = qualification;
+    }
+
+    public Integer getExperience() {
+        return experience;
+    }
+
+    public void setExperience(Integer experience) {
+        this.experience = experience;
+    }
+
     public User getUser() {
         return user;
     }
@@ -107,6 +150,9 @@ public class Staff {
     }
 
     public String getSubject() {
+        if (subject != null && !subject.isBlank()) {
+            return subject;
+        }
         return subjects != null && !subjects.isEmpty() ? subjects.get(0).getSubjectName() : null;
     }
 

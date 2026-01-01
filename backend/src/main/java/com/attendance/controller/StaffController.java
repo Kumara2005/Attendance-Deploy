@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
@@ -19,6 +20,7 @@ import jakarta.validation.Valid;
 @RestController
 @RequestMapping("/api/admin/staff")
 @CrossOrigin(origins = {"http://localhost:3000", "http://localhost:3007", "http://localhost:5173"})
+@PreAuthorize("hasRole('ADMIN')")
 public class StaffController {
 
     private final StaffRepository staffRepo;
@@ -63,6 +65,10 @@ public class StaffController {
             staff.setStaffCode(dto.getStaffCode());
             staff.setName(dto.getName());
             staff.setDepartment(dto.getDepartment());
+            staff.setSubject(dto.getSubject());
+            staff.setPhone(dto.getPhone());
+            staff.setQualification(dto.getQualification());
+            staff.setExperience(dto.getExperience());
             staff.setUser(savedUser);
             staff.setActive(true);
             
@@ -81,8 +87,8 @@ public class StaffController {
      * GET /api/admin/staff
      */
     @GetMapping
-    public List<Staff> all() {
-        return staffRepo.findAll();
+    public ResponseEntity<ApiResponse<List<Staff>>> all() {
+        return ResponseEntity.ok(ApiResponse.success(staffRepo.findAll()));
     }
 
     /**
@@ -90,8 +96,10 @@ public class StaffController {
      * POST /api/admin/staff
      */
     @PostMapping
-    public Staff add(@RequestBody Staff staff) {
-        return staffRepo.save(staff);
+    public ResponseEntity<ApiResponse<Staff>> add(@RequestBody Staff staff) {
+        Staff saved = staffRepo.save(staff);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success("Staff created successfully", saved));
     }
 
     /**
@@ -115,6 +123,10 @@ public class StaffController {
                 .map(staff -> {
                     staff.setName(staffUpdates.getName());
                     staff.setDepartment(staffUpdates.getDepartment());
+                    staff.setSubject(staffUpdates.getSubject());
+                    staff.setPhone(staffUpdates.getPhone());
+                    staff.setQualification(staffUpdates.getQualification());
+                    staff.setExperience(staffUpdates.getExperience());
                     Staff updated = staffRepo.save(staff);
                     return ResponseEntity.ok(ApiResponse.success("Staff updated successfully", updated));
                 })

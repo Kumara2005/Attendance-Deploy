@@ -37,13 +37,18 @@ public class StudentService {
 	}
 
 	public StudentDTO saveDTO(StudentDTO studentDTO) {
+		// Prevent duplicate roll numbers
+		repo.findByRollNo(studentDTO.getRollNo()).ifPresent(s -> {
+			throw new IllegalArgumentException("Roll number already exists");
+		});
+
 		Student student = toEntity(studentDTO);
 		
 		// Create User account automatically with student name as username and roll number as password
 		try {
 						// Check if user already exists
 						if (userRepository.findByUsernameIgnoreCase(studentDTO.getName()).isPresent()) {
-							throw new RuntimeException("User with this name already exists");
+							throw new IllegalArgumentException("User with this name already exists");
 						}
 			
 			User user = new User();
@@ -112,6 +117,9 @@ public class StudentService {
 		dto.setName(student.getName());
 		dto.setDepartment(student.getDepartment());
 		dto.setSemester(student.getSemester());
+		dto.setEmail(student.getEmail());
+		dto.setPhone(student.getPhone());
+		dto.setSection(student.getSection());
 		return dto;
 	}
 
@@ -122,6 +130,9 @@ public class StudentService {
 		student.setName(dto.getName());
 		student.setDepartment(dto.getDepartment());
 		student.setSemester(dto.getSemester());
+		student.setEmail(dto.getEmail());
+		student.setPhone(dto.getPhone());
+		student.setSection(dto.getSection());
 		return student;
 	}
 }

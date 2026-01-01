@@ -31,20 +31,20 @@ public interface SessionAttendanceRepository extends JpaRepository<SessionAttend
 	);
 	
 	// Additional queries for statistics
-	@Query("SELECT ts.subject.subjectName, " +
-	       "SUM(CASE WHEN sa.status = 'Present' THEN 1 ELSE 0 END), " +
-	       "COUNT(sa) " +
+	    @Query("SELECT ts.subject.subjectName, " +
+		    "SUM(CASE WHEN sa.status = 'PRESENT' THEN 1 ELSE 0 END), " +
+		    "COUNT(sa) " +
 	       "FROM SessionAttendance sa " +
 	       "JOIN sa.timetableSession ts " +
 	       "WHERE sa.student.id = :studentId " +
 	       "GROUP BY ts.subject.subjectName")
 	List<Object[]> findAttendanceByStudentGroupedBySubject(@Param("studentId") Long studentId);
 	
-	@Query("SELECT AVG(CAST(SUM(CASE WHEN sa.status = 'Present' THEN 1 ELSE 0 END) AS double) * 100.0 / COUNT(sa)) " +
+	    @Query("SELECT AVG(CAST(SUM(CASE WHEN sa.status = 'PRESENT' THEN 1 ELSE 0 END) AS double) * 100.0 / COUNT(sa)) " +
 	       "FROM SessionAttendance sa GROUP BY sa.student.id")
 	Double calculateOverallAttendancePercentage();
 	
-	@Query("SELECT AVG(CAST(SUM(CASE WHEN sa.status = 'Present' THEN 1 ELSE 0 END) AS double) * 100.0 / COUNT(sa)) " +
+	    @Query("SELECT AVG(CAST(SUM(CASE WHEN sa.status = 'PRESENT' THEN 1 ELSE 0 END) AS double) * 100.0 / COUNT(sa)) " +
 	       "FROM SessionAttendance sa " +
 	       "JOIN sa.timetableSession ts " +
 	       "WHERE ts.department = :department AND ts.semester = :semester " +
@@ -52,6 +52,13 @@ public interface SessionAttendanceRepository extends JpaRepository<SessionAttend
 	Double calculateAverageAttendanceByDepartmentAndSemester(
 	        @Param("department") String department, 
 	        @Param("semester") int semester);
+
+	    @Query("SELECT AVG(CAST(SUM(CASE WHEN sa.status = 'PRESENT' THEN 1 ELSE 0 END) AS double) * 100.0 / COUNT(sa)) " +
+		     "FROM SessionAttendance sa " +
+		     "JOIN sa.timetableSession ts " +
+		     "WHERE ts.department = :department " +
+		     "GROUP BY sa.student.id")
+	    Double calculateAverageAttendanceByDepartment(@Param("department") String department);
 	
 	boolean existsByTimetableSessionSubjectIdAndDateAndTimetableSessionStartTime(
 	        Long subjectId, LocalDate date, LocalTime sessionTime);
