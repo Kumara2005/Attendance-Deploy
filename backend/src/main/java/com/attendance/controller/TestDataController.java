@@ -38,48 +38,56 @@ public class TestDataController {
     /**
      * POST /api/test/seed-students
      * Seeds sample students for testing
-     * Creates 10 students for Computer Science Semester 1 Section A
+     * Creates 10 students for each year (Semester 1, 3, 5) in Section A
      */
     @PostMapping("/seed-students")
     public ResponseEntity<ApiResponse<String>> seedStudents() {
         try {
-            // Delete existing test students first
-            List<Student> existing = studentRepository.findByDepartmentAndSemesterAndSectionAndActiveTrue(
-                    "Computer Science", 1, "A");
-            if (!existing.isEmpty()) {
-                for (Student s : existing) {
-                    studentRepository.deleteById(s.getId());
-                }
-            }
-
+            // Seeds for multiple semesters (Years 1, 2, 3)
+            Integer[] semesters = {1, 3, 5};
+            
             String[] names = {
                 "Aarav Sharma", "Ananya Reddy", "Rohan Kumar", "Priya Singh", 
                 "Arjun Patel", "Meera Iyer", "Vikram Desai", "Kavya Nair", 
                 "Aditya Verma", "Ishita Kapoor"
             };
             
-            String[] rollNos = {
-                "CS-S1-A01", "CS-S1-A02", "CS-S1-A03", "CS-S1-A04", "CS-S1-A05",
-                "CS-S1-A06", "CS-S1-A07", "CS-S1-A08", "CS-S1-A09", "CS-S1-A10"
-            };
-            
-            int createdCount = 0;
-            for (int i = 0; i < names.length; i++) {
-                Student student = new Student();
-                student.setName(names[i]);
-                student.setRollNo(rollNos[i]);
-                student.setDepartment("Computer Science");
-                student.setSemester(1);
-                student.setSection("A");
-                student.setEmail(rollNos[i].toLowerCase() + "@college.edu");
-                student.setPhone("98765432" + String.format("%02d", i));
-                student.setActive(true);
-                
-                studentRepository.save(student);
-                createdCount++;
+            int totalCreatedCount = 0;
+
+            // Create students for each year
+            for (Integer semester : semesters) {
+                // Delete existing test students first
+                List<Student> existing = studentRepository.findByDepartmentAndSemesterAndSectionAndActiveTrue(
+                        "Computer Science", semester, "A");
+                if (!existing.isEmpty()) {
+                    for (Student s : existing) {
+                        studentRepository.deleteById(s.getId());
+                    }
+                }
+
+                // Create new students for this semester
+                for (int i = 0; i < names.length; i++) {
+                    String semesterLabel = semester == 1 ? "S1" : (semester == 3 ? "S3" : "S5");
+                    String rollNo = "CS-" + semesterLabel + "-A" + String.format("%02d", i + 1);
+                    
+                    Student student = new Student();
+                    student.setName(names[i]);
+                    student.setRollNo(rollNo);
+                    student.setDepartment("Computer Science");
+                    student.setSemester(semester);
+                    student.setSection("A");
+                    student.setEmail(rollNo.toLowerCase() + "@college.edu");
+                    student.setPhone("98765432" + String.format("%02d", i));
+                    student.setActive(true);
+                    
+                    studentRepository.save(student);
+                    totalCreatedCount++;
+                }
             }
 
-            String message = String.format("✅ Created %d test students for Computer Science Semester 1 Section A", createdCount);
+            String message = String.format(
+                "✅ Created %d test students (10 per year) for Computer Science Year 1-3 Section A", 
+                totalCreatedCount);
             System.out.println(message);
             return ResponseEntity.ok(ApiResponse.success(message));
 

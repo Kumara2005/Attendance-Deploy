@@ -212,15 +212,14 @@ const TestDataSetup: React.FC = () => {
             <h4 className="font-black text-slate-900 mb-3">📚 Test Students</h4>
             <div className="bg-slate-50 rounded-xl p-4 font-mono text-xs text-slate-700 space-y-1 overflow-x-auto">
               <div>Department: Computer Science</div>
-              <div>Semester: 1</div>
+              <div>Semesters: 1, 3, 5 (Year 1, 2, 3)</div>
               <div>Section: A</div>
-              <div>Count: 10 students</div>
-              <div className="mt-3">Names:</div>
+              <div>Count: 30 students total (10 per year)</div>
+              <div className="mt-3">Example Students:</div>
               <ul className="ml-4 space-y-1 list-disc">
-                <li>Aarav Sharma (CS-S1-A01)</li>
-                <li>Ananya Reddy (CS-S1-A02)</li>
-                <li>Rohan Kumar (CS-S1-A03)</li>
-                <li>... and 7 more</li>
+                <li>Year 1 (Sem 1): Aarav Sharma (CS-S1-A01), Ananya Reddy (CS-S1-A02), etc.</li>
+                <li>Year 2 (Sem 3): Aarav Sharma (CS-S3-A01), Ananya Reddy (CS-S3-A02), etc.</li>
+                <li>Year 3 (Sem 5): Aarav Sharma (CS-S5-A01), Ananya Reddy (CS-S5-A02), etc.</li>
               </ul>
             </div>
           </div>
