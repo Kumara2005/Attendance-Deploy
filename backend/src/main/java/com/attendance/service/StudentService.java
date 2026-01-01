@@ -76,7 +76,19 @@ public class StudentService {
 	}
 
 	public List<StudentDTO> getByDepartmentSemesterSection(String department, Integer semester, String section) {
-		return repo.findByDepartmentAndSemesterAndSectionAndActiveTrue(department, semester, section).stream()
+		System.out.println("   🔎 StudentService.getByDepartmentSemesterSection() executing:");
+		System.out.println("      Query: department='" + department + "', semester=" + semester + ", section='" + section + "', active=true");
+		
+		List<Student> results = repo.findByDepartmentAndSemesterAndSectionAndActiveTrue(department, semester, section);
+		
+		System.out.println("      Result: " + results.size() + " students found");
+		if (!results.isEmpty()) {
+			System.out.println("      Sample: " + results.get(0).getName() + " (Dept: " + results.get(0).getDepartment() + 
+							   ", Sem: " + results.get(0).getSemester() + ", Sec: " + results.get(0).getSection() + 
+							   ", Active: " + results.get(0).isActive() + ")");
+		}
+		
+		return results.stream()
 				.map(this::toDTO)
 				.collect(Collectors.toList());
 	}

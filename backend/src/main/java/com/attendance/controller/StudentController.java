@@ -48,11 +48,20 @@ public class StudentController {
             @RequestParam(required = false) Integer semester,
             @RequestParam(required = false) String section) {
         
+        System.out.println("🔍 StudentController.getAll() called with:");
+        System.out.println("   department: " + department);
+        System.out.println("   semester: " + semester);
+        System.out.println("   section: " + section);
+        
         List<StudentDTO> students;
         if (department != null && semester != null && section != null) {
+            System.out.println("   → Fetching filtered students...");
             students = service.getByDepartmentSemesterSection(department, semester, section);
+            System.out.println("   → Found " + students.size() + " students");
         } else {
+            System.out.println("   → Fetching ALL students...");
             students = service.getAllDTO();
+            System.out.println("   → Found " + students.size() + " students total");
         }
         return ResponseEntity.ok(ApiResponse.success(students));
     }
@@ -62,6 +71,28 @@ public class StudentController {
     public ResponseEntity<ApiResponse<StudentDTO>> getById(@PathVariable Long id) {
         StudentDTO student = service.getById(id);
         return ResponseEntity.ok(ApiResponse.success(student));
+    }
+
+    /**
+     * DEBUG ENDPOINT: Get all students without filters
+     * This is for troubleshooting only - shows exactly what's in the database
+     */
+    @GetMapping("/debug/all")
+    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
+    public ResponseEntity<ApiResponse<List<StudentDTO>>> getAllDebug() {
+        System.out.println("🐛 DEBUG: Fetching ALL students from database (no filters)");
+        List<StudentDTO> allStudents = service.getAllDTO();
+        System.out.println("🐛 DEBUG: Total students in database: " + allStudents.size());
+        
+        if (!allStudents.isEmpty()) {
+            System.out.println("🐛 DEBUG: Sample of first 5 students:");
+            allStudents.stream().limit(5).forEach(s -> 
+                System.out.println("   - " + s.getName() + " | Dept: " + s.getDepartment() + 
+                                 " | Sem: " + s.getSemester() + " | Sec: " + s.getSection())
+            );
+        }
+        
+        return ResponseEntity.ok(ApiResponse.success(allStudents));
     }
 
     @PutMapping("/{id}")
