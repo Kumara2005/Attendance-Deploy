@@ -21,7 +21,7 @@ public class TimetableSession {
 	private Staff staff;
 
 	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "class_id")
+	@JoinColumn(name = "class_id", nullable = true)
 	private Classes classEntity;
 
 	@Column(nullable = false, length = 100)
