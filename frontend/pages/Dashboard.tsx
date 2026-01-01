@@ -408,7 +408,7 @@ const StaffDashboard = ({ user }: { user: User }) => {
         
         // Use the attendance marking endpoint to get students
         const response = await apiClient.get(
-          `/staff/timetable/students?department=${encodeURIComponent(selectedClass.department)}&year=${year}&semester=${semester}&section=${selectedClass.section}`
+          `/teacher/students?department=${encodeURIComponent(selectedClass.department)}&year=${year}&semester=${semester}&section=${selectedClass.section}`
         );
         
         const studentData = response.data.data || [];

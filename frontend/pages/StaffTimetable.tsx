@@ -12,6 +12,8 @@ interface TimetableSession {
   endTime: string;
   subjectName: string;
   classContext: string;
+  semester?: number; // returned by backend timetable session
+  section?: string;  // returned by backend timetable session
 }
 
 const formatTo12h = (time: string) => {
@@ -41,7 +43,7 @@ const StaffTimetable: React.FC = () => {
       setLoadingYears(true);
       try {
         const response = await apiClient.get(
-          `/staff/years?department=${encodeURIComponent(selectedDepartment)}`
+          `/teacher/years?department=${encodeURIComponent(selectedDepartment)}`
         );
         console.log('📅 Available Years Response:', response.data);
         const years = response.data.data || [];
@@ -68,7 +70,7 @@ const StaffTimetable: React.FC = () => {
       setLoadingClasses(true);
       try {
         const response = await apiClient.get(
-          `/staff/classes?department=${encodeURIComponent(selectedDepartment)}&year=${selectedYear}`
+          `/teacher/classes?department=${encodeURIComponent(selectedDepartment)}&year=${selectedYear}`
         );
         console.log('🎓 Available Classes Response:', response.data);
         const classes = response.data.data || [];
@@ -95,7 +97,7 @@ const StaffTimetable: React.FC = () => {
       setLoading(true);
       try {
         const response = await apiClient.get(
-          `/staff/timetable?department=${encodeURIComponent(selectedDepartment)}&year=${selectedYear}&className=${selectedClass}`
+          `/teacher/schedule?department=${encodeURIComponent(selectedDepartment)}&year=${selectedYear}&className=${selectedClass}`
         );
         
         console.log('📅 Staff Timetable API Response:', response.data);
@@ -125,8 +127,9 @@ const StaffTimetable: React.FC = () => {
       state: {
         department: selectedDepartment,
         year: selectedYear,
-        semester: selectedYear, // Semester maps to year (Year 1 = Semester 1)
-        section: selectedClass,  // Renamed from 'class' to 'section'
+        // Use the session's actual semester so attendance screen fetches the right batch
+        semester: session.semester || selectedYear,
+        section: session.section || selectedClass,
         subjectName: session.subjectName,
         fromTimetable: true
       }

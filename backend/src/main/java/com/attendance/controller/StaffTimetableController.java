@@ -138,23 +138,44 @@ public class StaffTimetableController {
         // so map year to its two semesters when we detect that pattern to avoid empty results.
         List<Student> students;
         int expectedSemStart = (year - 1) * 2 + 1;
+        boolean noSectionFilter = (section == null || section.trim().isEmpty() || section.equalsIgnoreCase("ALL"));
+
         if (semester <= 3) { // semester likely sent as year (1, 2, or 3)
-            List<Student> semA = studentRepository
-                .findByDepartmentAndSemesterAndSectionAndActiveTrue(department, expectedSemStart, section);
-            List<Student> semB = studentRepository
-                .findByDepartmentAndSemesterAndSectionAndActiveTrue(department, expectedSemStart + 1, section);
-            // Merge and de-duplicate by id to keep response clean
-            students = new java.util.ArrayList<>();
-            students.addAll(semA);
-            for (Student s : semB) {
-                boolean exists = students.stream().anyMatch(stu -> stu.getId().equals(s.getId()));
-                if (!exists) {
-                    students.add(s);
+            if (noSectionFilter) {
+                List<Student> semA = studentRepository
+                    .findByDepartmentAndSemesterAndActiveTrue(department, expectedSemStart);
+                List<Student> semB = studentRepository
+                    .findByDepartmentAndSemesterAndActiveTrue(department, expectedSemStart + 1);
+                students = mergeDistinctById(semA, semB);
+            } else {
+                List<Student> semA = studentRepository
+                    .findByDepartmentAndSemesterAndSectionAndActiveTrue(department, expectedSemStart, section);
+                List<Student> semB = studentRepository
+                    .findByDepartmentAndSemesterAndSectionAndActiveTrue(department, expectedSemStart + 1, section);
+                students = mergeDistinctById(semA, semB);
+
+                // If nothing matched the section, fall back to no-section for this year range
+                if (students.isEmpty()) {
+                    students = mergeDistinctById(
+                        studentRepository.findByDepartmentAndSemesterAndActiveTrue(department, expectedSemStart),
+                        studentRepository.findByDepartmentAndSemesterAndActiveTrue(department, expectedSemStart + 1)
+                    );
                 }
             }
         } else {
-            students = studentRepository
-                .findByDepartmentAndSemesterAndSectionAndActiveTrue(department, semester, section);
+            if (noSectionFilter) {
+                students = studentRepository
+                    .findByDepartmentAndSemesterAndActiveTrue(department, semester);
+            } else {
+                students = studentRepository
+                    .findByDepartmentAndSemesterAndSectionAndActiveTrue(department, semester, section);
+
+                // If section-specific search returns none, try without section to avoid null-section gaps
+                if (students.isEmpty()) {
+                    students = studentRepository
+                        .findByDepartmentAndSemesterAndActiveTrue(department, semester);
+                }
+            }
         }
         
         List<Map<String, Object>> studentData = students.stream()
@@ -173,6 +194,19 @@ public class StaffTimetableController {
             .collect(Collectors.toList());
         
         return ResponseEntity.ok(ApiResponse.success(studentData));
+    }
+
+    // Utility to merge and de-duplicate students by id
+    private List<Student> mergeDistinctById(List<Student> a, List<Student> b) {
+        List<Student> merged = new java.util.ArrayList<>();
+        merged.addAll(a);
+        for (Student s : b) {
+            boolean exists = merged.stream().anyMatch(stu -> stu.getId().equals(s.getId()));
+            if (!exists) {
+                merged.add(s);
+            }
+        }
+        return merged;
     }
 }
 

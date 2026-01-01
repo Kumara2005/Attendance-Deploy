@@ -282,7 +282,8 @@ const AttendanceMarking: React.FC = () => {
 
   // Fetch students when all filters are selected
   useEffect(() => {
-    const token = localStorage.getItem('jwt_token');
+    // Use the same token key as authService to ensure Authorization header is present
+    const token = localStorage.getItem('token');
     console.log('🔍 Fetch students effect triggered:', {
       isStudent,
       selectedYear,
