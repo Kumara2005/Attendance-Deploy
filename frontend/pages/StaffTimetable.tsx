@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Calendar, Clock, BookOpen, Users, ChevronDown, AlertCircle, ArrowRight } from 'lucide-react';
 import apiClient from '../services/api';
+import QuickAttendance from '../components/QuickAttendance';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -36,6 +37,9 @@ const StaffTimetable: React.FC = () => {
   const [availableClasses, setAvailableClasses] = useState<string[]>([]);
   const [loadingYears, setLoadingYears] = useState(false);
   const [loadingClasses, setLoadingClasses] = useState(false);
+  
+  // State for quick attendance modal
+  const [selectedSession, setSelectedSession] = useState<TimetableSession | null>(null);
 
   // Fetch available years when component mounts
   useEffect(() => {
@@ -120,20 +124,10 @@ const StaffTimetable: React.FC = () => {
       .sort((a, b) => a.startTime.localeCompare(b.startTime));
   };
 
-  // Handle click on timetable block - Navigate to attendance marking
+  // Handle click on timetable block - Open quick attendance modal
   const handleSessionClick = (session: TimetableSession) => {
-    console.log('🎯 Navigating to attendance for:', session);
-    navigate('/attendance', {
-      state: {
-        department: selectedDepartment,
-        year: selectedYear,
-        // Use the session's actual semester so attendance screen fetches the right batch
-        semester: session.semester || selectedYear,
-        section: session.section || selectedClass,
-        subjectName: session.subjectName,
-        fromTimetable: true
-      }
-    });
+    console.log('🎯 Opening quick attendance for:', session);
+    setSelectedSession(session);
   };
 
   return (
@@ -318,6 +312,23 @@ const StaffTimetable: React.FC = () => {
             Choose a year and class to view your teaching schedule
           </p>
         </div>
+      )}
+
+      {/* Quick Attendance Modal */}
+      {selectedSession && (
+        <QuickAttendance
+          sessionId={selectedSession.id}
+          sessionTime={`${formatTo12h(selectedSession.startTime)} - ${formatTo12h(selectedSession.endTime)}`}
+          subjectName={selectedSession.subjectName}
+          department={selectedDepartment}
+          semester={selectedSession.semester || selectedYear as number}
+          section={selectedSession.section || selectedClass}
+          onClose={() => setSelectedSession(null)}
+          onSaved={() => {
+            // Could refresh data here if needed
+            console.log('✅ Attendance saved, modal will close');
+          }}
+        />
       )}
     </div>
   );
