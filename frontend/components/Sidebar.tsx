@@ -30,7 +30,7 @@ const Sidebar: React.FC<SidebarProps> = ({ user, logout }) => {
       roles: [UserRole.ADMIN, UserRole.STAFF, UserRole.STUDENT] 
     },
     { 
-      name: 'Students', 
+      name: 'Registry Directory', 
       icon: Users, 
       path: '/students', 
       roles: [UserRole.ADMIN, UserRole.STAFF],
