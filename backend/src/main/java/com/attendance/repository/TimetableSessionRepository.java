@@ -48,8 +48,10 @@ public interface TimetableSessionRepository
     // Find sessions by subject (for dependency checking)
     List<TimetableSession> findBySubjectAndActiveTrue(com.attendance.model.Subject subject);
     
-    @Query("SELECT ts FROM TimetableSession ts WHERE ts.staff.id = :staffId " +
-           "AND ts.dayOfWeek = :dayOfWeek AND ts.active = true ORDER BY ts.startTime")
+    // Find today's sessions for a staff member using native column instead of relationship traversal
+    @Query(value = "SELECT ts.* FROM timetable_session ts WHERE ts.staff_id = :staffId " +
+           "AND LOWER(ts.day_of_week) = LOWER(:dayOfWeek) AND ts.active = true ORDER BY ts.start_time", 
+           nativeQuery = true)
     List<TimetableSession> findByFacultyIdAndDayOfWeekAndIsActiveTrue(
             @Param("staffId") Long staffId, @Param("dayOfWeek") String dayOfWeek);
     
