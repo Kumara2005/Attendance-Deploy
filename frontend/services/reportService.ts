@@ -72,7 +72,7 @@ export const reportService = {
     if (semester) params.semester = semester;
 
     const response = await apiClient.get<ApiResponse<AttendanceReportDTO[]>>(
-      '/reports/semester',
+      '/reports/semester-wise',
       { params }
     );
     return extractData<AttendanceReportDTO[]>(response);
