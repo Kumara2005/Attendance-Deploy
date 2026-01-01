@@ -134,8 +134,28 @@ public class StaffTimetableController {
             @RequestParam int semester,
             @RequestParam String section
     ) {
-        List<Student> students = studentRepository
-            .findByDepartmentAndSemesterAndSectionAndActiveTrue(department, semester, section);
+        // Frontend sometimes passes year as the semester value (e.g., Year 3 -> semester=3),
+        // so map year to its two semesters when we detect that pattern to avoid empty results.
+        List<Student> students;
+        int expectedSemStart = (year - 1) * 2 + 1;
+        if (semester <= 3) { // semester likely sent as year (1, 2, or 3)
+            List<Student> semA = studentRepository
+                .findByDepartmentAndSemesterAndSectionAndActiveTrue(department, expectedSemStart, section);
+            List<Student> semB = studentRepository
+                .findByDepartmentAndSemesterAndSectionAndActiveTrue(department, expectedSemStart + 1, section);
+            // Merge and de-duplicate by id to keep response clean
+            students = new java.util.ArrayList<>();
+            students.addAll(semA);
+            for (Student s : semB) {
+                boolean exists = students.stream().anyMatch(stu -> stu.getId().equals(s.getId()));
+                if (!exists) {
+                    students.add(s);
+                }
+            }
+        } else {
+            students = studentRepository
+                .findByDepartmentAndSemesterAndSectionAndActiveTrue(department, semester, section);
+        }
         
         List<Map<String, Object>> studentData = students.stream()
             .map(student -> {
