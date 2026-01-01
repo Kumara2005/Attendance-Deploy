@@ -201,10 +201,10 @@ const AdminDashboard = () => {
           
           // Convert classes to programme format with real student counts
           const classProgrammes = classesData.map((c: any) => {
-            // Count students matching department and semester
+            // Count ALL students in this department (not filtered by semester)
+            // This shows total enrollment for the entire program
             const studentCount = studentsData.filter((s: any) => 
-              s.department === c.department && 
-              s.semester === c.semester
+              s.department === c.department
             ).length;
             
             return {
