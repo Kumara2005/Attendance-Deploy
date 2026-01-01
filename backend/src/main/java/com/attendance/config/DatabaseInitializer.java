@@ -157,30 +157,52 @@ public class DatabaseInitializer implements CommandLineRunner {
                 WHERE s.active = true
                 """;
             
+            final int[] totalAssigned = {0};
+            
             jdbcTemplate.query(query, (rs) -> {
                 Long staffId = rs.getLong("staff_id");
                 String staffName = rs.getString("name");
                 Long subjectId = rs.getLong("subject_id");
                 String subjectName = rs.getString("subject_name");
                 
+                logger.info("  🔍 Processing: Staff {} (ID={}) → Subject {} (ID={})", 
+                           staffName, staffId, subjectName, subjectId);
+                
                 try {
-                    // Find all timetable sessions for this subject that don't have a staff assigned
+                    // Count sessions that need assignment
+                    Integer nullCount = jdbcTemplate.queryForObject(
+                        "SELECT COUNT(*) FROM timetable_session WHERE subject_id = ? AND staff_id IS NULL AND active = true",
+                        Integer.class, subjectId
+                    );
+                    
+                    Integer totalCount = jdbcTemplate.queryForObject(
+                        "SELECT COUNT(*) FROM timetable_session WHERE subject_id = ? AND active = true",
+                        Integer.class, subjectId
+                    );
+                    
+                    logger.info("    📊 Subject {} has {} total sessions, {} without staff assignment", 
+                               subjectName, totalCount, nullCount);
+                    
+                    // Update sessions
                     int updated = jdbcTemplate.update(
                         "UPDATE timetable_session SET staff_id = ? WHERE subject_id = ? AND staff_id IS NULL AND active = true",
                         staffId, subjectId
                     );
                     
                     if (updated > 0) {
-                        logger.info("  ✅ Assigned {} to {} timetable session(s) for subject: {}", 
+                        logger.info("    ✅ Assigned {} to {} timetable session(s) for subject: {}", 
                                     staffName, updated, subjectName);
+                        totalAssigned[0] += updated;
+                    } else {
+                        logger.info("    ⏭️  No unassigned sessions found for subject: {}", subjectName);
                     }
                 } catch (Exception e) {
-                    logger.warn("  ⚠️  Could not assign {} to subject {}: {}", 
+                    logger.warn("    ⚠️  Could not assign {} to subject {}: {}", 
                                 staffName, subjectName, e.getMessage());
                 }
             });
             
-            logger.info("✅ Staff assignment initialization complete");
+            logger.info("✅ Staff assignment initialization complete: {} total assignments made", totalAssigned[0]);
             
         } catch (Exception e) {
             logger.warn("⚠️  Non-critical error during staff assignment: " + e.getMessage());
