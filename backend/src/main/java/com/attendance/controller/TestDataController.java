@@ -38,13 +38,21 @@ public class TestDataController {
     /**
      * POST /api/test/seed-students
      * Seeds sample students for testing
-     * Creates 10 students for each year (Semester 1, 3, 5) in Section A
+     * Creates 10 students for each semester
+     * 
+     * Semester Mapping:
+     * Year 1 → Semesters 1 & 2
+     * Year 2 → Semesters 3 & 4
+     * Year 3 → Semesters 5 & 6
      */
     @PostMapping("/seed-students")
     public ResponseEntity<ApiResponse<String>> seedStudents() {
         try {
-            // Seeds for multiple semesters (Years 1, 2, 3)
-            Integer[] semesters = {1, 3, 5};
+            // Seeds for all semesters (1,2,3,4,5,6)
+            // Year 1: Semesters 1, 2
+            // Year 2: Semesters 3, 4
+            // Year 3: Semesters 5, 6
+            Integer[] semesters = {1, 2, 3, 4, 5, 6};
             
             String[] names = {
                 "Aarav Sharma", "Ananya Reddy", "Rohan Kumar", "Priya Singh", 
@@ -54,12 +62,13 @@ public class TestDataController {
             
             int totalCreatedCount = 0;
 
-            // Create students for each year
+            // Create students for each semester
             for (Integer semester : semesters) {
                 // Delete existing test students first
                 List<Student> existing = studentRepository.findByDepartmentAndSemesterAndSectionAndActiveTrue(
                         "Computer Science", semester, "A");
                 if (!existing.isEmpty()) {
+                    System.out.println("   Clearing " + existing.size() + " existing students for Semester " + semester);
                     for (Student s : existing) {
                         studentRepository.deleteById(s.getId());
                     }
@@ -67,7 +76,7 @@ public class TestDataController {
 
                 // Create new students for this semester
                 for (int i = 0; i < names.length; i++) {
-                    String semesterLabel = semester == 1 ? "S1" : (semester == 3 ? "S3" : "S5");
+                    String semesterLabel = String.format("S%d", semester);
                     String rollNo = "CS-" + semesterLabel + "-A" + String.format("%02d", i + 1);
                     
                     Student student = new Student();
@@ -83,10 +92,13 @@ public class TestDataController {
                     studentRepository.save(student);
                     totalCreatedCount++;
                 }
+                
+                String yearLabel = semester <= 2 ? "Year 1" : (semester <= 4 ? "Year 2" : "Year 3");
+                System.out.println("   ✅ Created 10 students for " + yearLabel + " (Semester " + semester + ")");
             }
 
             String message = String.format(
-                "✅ Created %d test students (10 per year) for Computer Science Year 1-3 Section A", 
+                "✅ Created %d test students (10 per semester, 60 total) for Computer Science Year 1-3 Section A", 
                 totalCreatedCount);
             System.out.println(message);
             return ResponseEntity.ok(ApiResponse.success(message));

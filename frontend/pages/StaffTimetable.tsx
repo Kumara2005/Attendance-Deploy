@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Calendar, Clock, BookOpen, Users, ChevronDown, AlertCircle, ArrowRight } from 'lucide-react';
 import apiClient from '../services/api';
+import { getYearLabel, getAllYears } from '../services/semesterUtils';
 import QuickAttendance from '../components/QuickAttendance';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -51,10 +52,10 @@ const StaffTimetable: React.FC = () => {
         );
         console.log('📅 Available Years Response:', response.data);
         const years = response.data.data || [];
-        setAvailableYears(years.length > 0 ? years : [1, 2, 3]);
+        setAvailableYears(years.length > 0 ? years : getAllYears()); // Use utility for default
       } catch (error) {
         console.error('❌ Error fetching years:', error);
-        setAvailableYears([1, 2, 3]); // Fallback to default
+        setAvailableYears(getAllYears()); // Use utility for fallback
       } finally {
         setLoadingYears(false);
       }
@@ -182,7 +183,7 @@ const StaffTimetable: React.FC = () => {
               >
                 <option value="">{loadingYears ? 'Loading...' : 'Select Year'}</option>
                 {availableYears.map(year => (
-                  <option key={year} value={year}>Year {year}</option>
+                  <option key={year} value={year}>{getYearLabel(year)}</option>
                 ))}
               </select>
               <div className="absolute inset-y-0 right-5 flex items-center pointer-events-none">
@@ -233,7 +234,7 @@ const StaffTimetable: React.FC = () => {
           <div className="p-10 border-b border-slate-100 bg-gradient-to-br from-indigo-50 to-white">
             <h3 className="text-3xl font-black text-slate-900 tracking-tight flex items-center gap-3">
               <Clock className="w-8 h-8 text-indigo-600" />
-              Weekly Schedule - Year {selectedYear} Class {selectedClass}
+              Weekly Schedule - {getYearLabel(selectedYear as number)} Class {selectedClass}
             </h3>
             <p className="text-xs font-black text-indigo-600 uppercase tracking-widest mt-2">
               {selectedDepartment}
