@@ -2,8 +2,10 @@ package com.attendance.controller;
 
 import java.util.List;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.http.ResponseEntity;
 import com.attendance.model.TimetableSession;
 import com.attendance.repository.TimetableSessionRepository;
+import com.attendance.dto.ApiResponse;
 
 @RestController
 @RequestMapping("/api/admin/timetable")
@@ -16,12 +18,14 @@ public class TimetableController {
     }
 
     @PostMapping
-    public TimetableSession create(@RequestBody TimetableSession session) {
-        return repo.save(session);
+    public ResponseEntity<ApiResponse<TimetableSession>> create(@RequestBody TimetableSession session) {
+        TimetableSession created = repo.save(session);
+        return ResponseEntity.ok(ApiResponse.success("Timetable session created", created));
     }
 
     @GetMapping
-    public List<TimetableSession> getAll() {
-        return repo.findAll();
+    public ResponseEntity<ApiResponse<List<TimetableSession>>> getAll() {
+        List<TimetableSession> sessions = repo.findAll();
+        return ResponseEntity.ok(ApiResponse.success(sessions));
     }
 }

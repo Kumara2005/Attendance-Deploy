@@ -3,8 +3,10 @@ package com.attendance.controller;
 import java.time.LocalDate;
 import java.util.List;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.http.ResponseEntity;
 import com.attendance.model.SessionAttendance;
 import com.attendance.service.AttendanceReportService;
+import com.attendance.dto.ApiResponse;
 
 @RestController
 @RequestMapping("/api/reports")
@@ -17,54 +19,60 @@ public class AttendanceReportController {
     }
 
     @GetMapping("/daily")
-    public List<SessionAttendance> daily(@RequestParam String date) {
-        return service.daily(LocalDate.parse(date));
+    public ResponseEntity<ApiResponse<List<SessionAttendance>>> daily(@RequestParam String date) {
+        List<SessionAttendance> result = service.daily(LocalDate.parse(date));
+        return ResponseEntity.ok(ApiResponse.success(result));
     }
 
     @GetMapping("/monthly")
-    public List<SessionAttendance> monthly(
+    public ResponseEntity<ApiResponse<List<SessionAttendance>>> monthly(
             @RequestParam int year,
             @RequestParam int month) {
-        return service.monthly(year, month);
+        List<SessionAttendance> result = service.monthly(year, month);
+        return ResponseEntity.ok(ApiResponse.success(result));
     }
 
     @GetMapping("/semester")
-    public List<SessionAttendance> semester(
+    public ResponseEntity<ApiResponse<List<SessionAttendance>>> semester(
             @RequestParam String from,
             @RequestParam String to) {
-        return service.semester(
+        List<SessionAttendance> result = service.semester(
                 LocalDate.parse(from),
                 LocalDate.parse(to));
+        return ResponseEntity.ok(ApiResponse.success(result));
     }
 
     @GetMapping("/subject/{subjectId}")
-    public List<SessionAttendance> subject(@PathVariable Long subjectId) {
-        return service.subject(subjectId);
+    public ResponseEntity<ApiResponse<List<SessionAttendance>>> subject(@PathVariable Long subjectId) {
+        List<SessionAttendance> result = service.subject(subjectId);
+        return ResponseEntity.ok(ApiResponse.success(result));
     }
 
     @GetMapping("/session/{sessionId}")
-    public List<SessionAttendance> session(@PathVariable Long sessionId) {
-        return service.session(sessionId);
+    public ResponseEntity<ApiResponse<List<SessionAttendance>>> session(@PathVariable Long sessionId) {
+        List<SessionAttendance> result = service.session(sessionId);
+        return ResponseEntity.ok(ApiResponse.success(result));
     }
     
     @GetMapping("/percentage/subject")
-    public double subjectPercentage(
+    public ResponseEntity<ApiResponse<Double>> subjectPercentage(
             @RequestParam Long studentId,
             @RequestParam Long subjectId) {
-        return service.subjectPercentage(studentId, subjectId);
+        double result = service.subjectPercentage(studentId, subjectId);
+        return ResponseEntity.ok(ApiResponse.success(result));
     }
 
     @GetMapping("/percentage/semester")
-    public double semesterPercentage(
+    public ResponseEntity<ApiResponse<Double>> semesterPercentage(
             @RequestParam Long studentId,
             @RequestParam String from,
             @RequestParam String to) {
-
-        return service.semesterPercentage(
+        double result = service.semesterPercentage(
             studentId,
             LocalDate.parse(from),
             LocalDate.parse(to)
         );
+        return ResponseEntity.ok(ApiResponse.success(result));
     }
 
 }

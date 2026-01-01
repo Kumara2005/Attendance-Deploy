@@ -1,8 +1,10 @@
 package com.attendance.controller;
 
 import org.springframework.web.bind.annotation.*;
+import org.springframework.http.ResponseEntity;
 import com.attendance.model.SessionAttendance;
 import com.attendance.service.SessionAttendanceService;
+import com.attendance.dto.ApiResponse;
 
 @RestController
 @RequestMapping("/api/attendance/session")
@@ -15,8 +17,9 @@ public class SessionAttendanceController {
     }
 
     @PostMapping
-    public SessionAttendance mark(@RequestBody SessionAttendance attendance) {
-        return service.mark(attendance);
+    public ResponseEntity<ApiResponse<SessionAttendance>> mark(@RequestBody SessionAttendance attendance) {
+        SessionAttendance marked = service.mark(attendance);
+        return ResponseEntity.ok(ApiResponse.success(marked));
     }
 }
 

@@ -1,9 +1,10 @@
 package com.attendance.controller;
 
 import org.springframework.web.bind.annotation.*;
-
+import org.springframework.http.ResponseEntity;
 import com.attendance.model.SystemSettings;
 import com.attendance.repository.SystemSettingsRepository;
+import com.attendance.dto.ApiResponse;
 
 @RestController
 @RequestMapping("/api/admin/settings")
@@ -17,15 +18,17 @@ public class SettingsController {
 
     // 🔹 Save / Update settings (Admin)
     @PostMapping
-    public SystemSettings save(@RequestBody SystemSettings settings) {
+    public ResponseEntity<ApiResponse<SystemSettings>> save(@RequestBody SystemSettings settings) {
         settings.setId(1L); // ensure single row
-        return repo.save(settings);
+        SystemSettings saved = repo.save(settings);
+        return ResponseEntity.ok(ApiResponse.success("Settings saved successfully", saved));
     }
 
     // 🔹 Get current settings
     @GetMapping
-    public SystemSettings get() {
-        return repo.findById(1L)
+    public ResponseEntity<ApiResponse<SystemSettings>> get() {
+        SystemSettings settings = repo.findById(1L)
                 .orElseThrow(() -> new RuntimeException("Settings not configured"));
+        return ResponseEntity.ok(ApiResponse.success(settings));
     }
 }

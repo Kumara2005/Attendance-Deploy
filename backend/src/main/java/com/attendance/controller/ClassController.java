@@ -1,5 +1,6 @@
 package com.attendance.controller;
 
+import com.attendance.dto.ApiResponse;
 import com.attendance.dto.ClassDTO;
 import com.attendance.service.ClassService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,19 +25,13 @@ public class ClassController {
      * Get all classes
      */
     @GetMapping
-    public ResponseEntity<?> getAllClasses() {
+    public ResponseEntity<ApiResponse<List<ClassDTO>>> getAllClasses() {
         try {
             List<ClassDTO> classes = classService.getAllClasses();
-            return ResponseEntity.ok().body(Map.of(
-                    "status", "success",
-                    "message", "Classes retrieved successfully",
-                    "data", classes
-            ));
+            return ResponseEntity.ok(ApiResponse.success(classes));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
-                    "status", "error",
-                    "message", "Failed to retrieve classes: " + e.getMessage()
-            ));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to retrieve classes: " + e.getMessage()));
         }
     }
 
@@ -44,26 +39,18 @@ public class ClassController {
      * Get class by ID
      */
     @GetMapping("/{id}")
-    public ResponseEntity<?> getClassById(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<ClassDTO>> getClassById(@PathVariable Long id) {
         try {
             Optional<ClassDTO> classDto = classService.getClassById(id);
             if (classDto.isPresent()) {
-                return ResponseEntity.ok().body(Map.of(
-                        "status", "success",
-                        "message", "Class retrieved successfully",
-                        "data", classDto.get()
-                ));
+                return ResponseEntity.ok(ApiResponse.success(classDto.get()));
             } else {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
-                        "status", "error",
-                        "message", "Class not found"
-                ));
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(ApiResponse.error("Class not found"));
             }
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
-                    "status", "error",
-                    "message", "Failed to retrieve class: " + e.getMessage()
-            ));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to retrieve class: " + e.getMessage()));
         }
     }
 
@@ -71,19 +58,13 @@ public class ClassController {
      * Get classes by department
      */
     @GetMapping("/department/{department}")
-    public ResponseEntity<?> getClassesByDepartment(@PathVariable String department) {
+    public ResponseEntity<ApiResponse<List<ClassDTO>>> getClassesByDepartment(@PathVariable String department) {
         try {
             List<ClassDTO> classes = classService.getClassesByDepartment(department);
-            return ResponseEntity.ok().body(Map.of(
-                    "status", "success",
-                    "message", "Classes retrieved successfully",
-                    "data", classes
-            ));
+            return ResponseEntity.ok(ApiResponse.success(classes));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
-                    "status", "error",
-                    "message", "Failed to retrieve classes: " + e.getMessage()
-            ));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to retrieve classes: " + e.getMessage()));
         }
     }
 
@@ -91,21 +72,15 @@ public class ClassController {
      * Get classes by department and year
      */
     @GetMapping("/department/{department}/year/{year}")
-    public ResponseEntity<?> getClassesByDepartmentAndYear(
+    public ResponseEntity<ApiResponse<List<ClassDTO>>> getClassesByDepartmentAndYear(
             @PathVariable String department,
             @PathVariable int year) {
         try {
             List<ClassDTO> classes = classService.getClassesByDepartmentAndYear(department, year);
-            return ResponseEntity.ok().body(Map.of(
-                    "status", "success",
-                    "message", "Classes retrieved successfully",
-                    "data", classes
-            ));
+            return ResponseEntity.ok(ApiResponse.success(classes));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
-                    "status", "error",
-                    "message", "Failed to retrieve classes: " + e.getMessage()
-            ));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to retrieve classes: " + e.getMessage()));
         }
     }
 
@@ -113,28 +88,21 @@ public class ClassController {
      * Create a new class
      */
     @PostMapping
-    public ResponseEntity<?> createClass(@Valid @RequestBody ClassDTO classDTO) {
+    public ResponseEntity<ApiResponse<ClassDTO>> createClass(@Valid @RequestBody ClassDTO classDTO) {
         try {
             // Check for duplicate
-            if (classService.classExists(classDTO.getDepartment(), classDTO.getYear(), 
+            if (classService.classExists(classDTO.getDepartment(), classDTO.getYear(),
                     classDTO.getSemester(), classDTO.getSection())) {
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
-                        "status", "error",
-                        "message", "Class with this department, year, semester, and section already exists"
-                ));
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(ApiResponse.error("Class with this department, year, semester, and section already exists"));
             }
 
             ClassDTO createdClass = classService.createClass(classDTO);
-            return ResponseEntity.status(HttpStatus.CREATED).body(Map.of(
-                    "status", "success",
-                    "message", "Class created successfully",
-                    "data", createdClass
-            ));
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(ApiResponse.success("Class created successfully", createdClass));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
-                    "status", "error",
-                    "message", "Failed to create class: " + e.getMessage()
-            ));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to create class: " + e.getMessage()));
         }
     }
 
@@ -142,28 +110,20 @@ public class ClassController {
      * Update an existing class
      */
     @PutMapping("/{id}")
-    public ResponseEntity<?> updateClass(
+    public ResponseEntity<ApiResponse<ClassDTO>> updateClass(
             @PathVariable Long id,
             @Valid @RequestBody ClassDTO classDTO) {
         try {
             Optional<ClassDTO> updatedClass = classService.updateClass(id, classDTO);
             if (updatedClass.isPresent()) {
-                return ResponseEntity.ok().body(Map.of(
-                        "status", "success",
-                        "message", "Class updated successfully",
-                        "data", updatedClass.get()
-                ));
+                return ResponseEntity.ok(ApiResponse.success("Class updated successfully", updatedClass.get()));
             } else {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
-                        "status", "error",
-                        "message", "Class not found"
-                ));
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(ApiResponse.error("Class not found"));
             }
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
-                    "status", "error",
-                    "message", "Failed to update class: " + e.getMessage()
-            ));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to update class: " + e.getMessage()));
         }
     }
 
@@ -171,25 +131,18 @@ public class ClassController {
      * Delete a class
      */
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> deleteClass(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<Void>> deleteClass(@PathVariable Long id) {
         try {
             boolean deleted = classService.deleteClass(id);
             if (deleted) {
-                return ResponseEntity.ok().body(Map.of(
-                        "status", "success",
-                        "message", "Class deleted successfully"
-                ));
+                return ResponseEntity.ok(ApiResponse.success("Class deleted successfully", null));
             } else {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
-                        "status", "error",
-                        "message", "Class not found"
-                ));
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(ApiResponse.error("Class not found"));
             }
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
-                    "status", "error",
-                    "message", "Failed to delete class: " + e.getMessage()
-            ));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to delete class: " + e.getMessage()));
         }
     }
 
@@ -197,19 +150,14 @@ public class ClassController {
      * Check if class exists (for validation)
      */
     @PostMapping("/check-exists")
-    public ResponseEntity<?> checkClassExists(@RequestBody ClassDTO classDTO) {
+    public ResponseEntity<ApiResponse<Boolean>> checkClassExists(@RequestBody ClassDTO classDTO) {
         try {
             boolean exists = classService.classExists(classDTO.getDepartment(), classDTO.getYear(),
                     classDTO.getSemester(), classDTO.getSection());
-            return ResponseEntity.ok().body(Map.of(
-                    "status", "success",
-                    "exists", exists
-            ));
+            return ResponseEntity.ok(ApiResponse.success(exists));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
-                    "status", "error",
-                    "message", "Failed to check class: " + e.getMessage()
-            ));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to check class: " + e.getMessage()));
         }
     }
 }

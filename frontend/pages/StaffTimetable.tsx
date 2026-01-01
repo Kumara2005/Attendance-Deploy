@@ -30,8 +30,59 @@ const StaffTimetable: React.FC = () => {
   const [selectedClass, setSelectedClass] = useState<string>('');
   const [scheduleData, setScheduleData] = useState<TimetableSession[]>([]);
   const [loading, setLoading] = useState(false);
-  const [availableYears] = useState([1, 2, 3]);
-  const [availableClasses] = useState(['A', 'B', 'C']);
+  const [availableYears, setAvailableYears] = useState<number[]>([]);
+  const [availableClasses, setAvailableClasses] = useState<string[]>([]);
+  const [loadingYears, setLoadingYears] = useState(false);
+  const [loadingClasses, setLoadingClasses] = useState(false);
+
+  // Fetch available years when component mounts
+  useEffect(() => {
+    const fetchYears = async () => {
+      setLoadingYears(true);
+      try {
+        const response = await apiClient.get(
+          `/staff/years?department=${encodeURIComponent(selectedDepartment)}`
+        );
+        console.log('📅 Available Years Response:', response.data);
+        const years = response.data.data || [];
+        setAvailableYears(years.length > 0 ? years : [1, 2, 3]);
+      } catch (error) {
+        console.error('❌ Error fetching years:', error);
+        setAvailableYears([1, 2, 3]); // Fallback to default
+      } finally {
+        setLoadingYears(false);
+      }
+    };
+
+    fetchYears();
+  }, [selectedDepartment]);
+
+  // Fetch available classes when year is selected
+  useEffect(() => {
+    if (!selectedYear) {
+      setAvailableClasses([]);
+      return;
+    }
+
+    const fetchClasses = async () => {
+      setLoadingClasses(true);
+      try {
+        const response = await apiClient.get(
+          `/staff/classes?department=${encodeURIComponent(selectedDepartment)}&year=${selectedYear}`
+        );
+        console.log('🎓 Available Classes Response:', response.data);
+        const classes = response.data.data || [];
+        setAvailableClasses(classes.length > 0 ? classes : ['A', 'B', 'C']);
+      } catch (error) {
+        console.error('❌ Error fetching classes:', error);
+        setAvailableClasses(['A', 'B', 'C']); // Fallback to default
+      } finally {
+        setLoadingClasses(false);
+      }
+    };
+
+    fetchClasses();
+  }, [selectedYear, selectedDepartment]);
 
   // Fetch teacher's schedule when filters change
   useEffect(() => {
@@ -129,9 +180,10 @@ const StaffTimetable: React.FC = () => {
                   setSelectedYear(e.target.value ? Number(e.target.value) : '');
                   setSelectedClass(''); // Reset class when year changes
                 }}
-                className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-12 pr-10 py-4 font-black text-[10px] text-slate-900 uppercase tracking-widest outline-none focus:ring-4 focus:ring-indigo-100 focus:border-indigo-200 transition-all appearance-none cursor-pointer shadow-sm"
+                disabled={loadingYears}
+                className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-12 pr-10 py-4 font-black text-[10px] text-slate-900 uppercase tracking-widest outline-none focus:ring-4 focus:ring-indigo-100 focus:border-indigo-200 transition-all appearance-none cursor-pointer shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <option value="">Select Year</option>
+                <option value="">{loadingYears ? 'Loading...' : 'Select Year'}</option>
                 {availableYears.map(year => (
                   <option key={year} value={year}>Year {year}</option>
                 ))}
@@ -152,10 +204,12 @@ const StaffTimetable: React.FC = () => {
               <select 
                 value={selectedClass}
                 onChange={(e) => setSelectedClass(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-12 pr-10 py-4 font-black text-[10px] text-slate-900 uppercase tracking-widest outline-none focus:ring-4 focus:ring-indigo-100 focus:border-indigo-200 transition-all appearance-none cursor-pointer shadow-sm"
-                disabled={!selectedYear}
+                className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-12 pr-10 py-4 font-black text-[10px] text-slate-900 uppercase tracking-widest outline-none focus:ring-4 focus:ring-indigo-100 focus:border-indigo-200 transition-all appearance-none cursor-pointer shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={!selectedYear || loadingClasses}
               >
-                <option value="">Select Class</option>
+                <option value="">
+                  {!selectedYear ? 'Select Year First' : loadingClasses ? 'Loading...' : 'Select Class'}
+                </option>
                 {availableClasses.map(cls => (
                   <option key={cls} value={cls}>Class {cls}</option>
                 ))}
