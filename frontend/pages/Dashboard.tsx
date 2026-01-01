@@ -166,6 +166,7 @@ const AdminDashboard = () => {
   const navigate = useNavigate();
   const [programmeFilter, setProgrammeFilter] = useState('All Programmes');
   const [programmes, setProgrammes] = useState<any[]>([]);
+  const [totalStudents, setTotalStudents] = useState<number>(0); // NEW: Track total student count
   const [loading, setLoading] = useState(true);
 
   // ✨ Fetch programmes AND classes, merge them for display
@@ -193,6 +194,10 @@ const AdminDashboard = () => {
           // Fetch all students to count enrollment
           const studentsResponse = await apiClient.get('/students');
           const studentsData = studentsResponse.data.data || [];
+          
+          // Set total student count (ACTIVE students only)
+          setTotalStudents(studentsData.length);
+          console.log(`✅ Total students in database: ${studentsData.length}`);
           
           // Convert classes to programme format with real student counts
           const classProgrammes = classesData.map((c: any) => {
@@ -318,7 +323,7 @@ const AdminDashboard = () => {
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <QuickStat label="Total Enrollment" value="1,600" sub="Students" icon={Users} color="indigo" />
+            <QuickStat label="Total Enrollment" value={totalStudents.toString()} sub="Students" icon={Users} color="indigo" />
             <QuickStat label="Faculty Roster" value={MOCK_STAFF.length.toString()} sub="Professors" icon={Award} color="violet" />
             <QuickStat label="Active Streams" value="12" sub="Departments" icon={Activity} color="amber" />
           </div>
