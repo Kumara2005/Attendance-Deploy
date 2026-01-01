@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Calendar, Clock, BookOpen, Users, ChevronDown, AlertCircle, ArrowRight } from 'lucide-react';
+import { Calendar, Clock, BookOpen, Users, ChevronDown, AlertCircle, ArrowRight, GraduationCap } from 'lucide-react';
 import apiClient from '../services/api';
-import { getYearLabel, getAllYears } from '../services/semesterUtils';
+import { getYearLabel, getAllYears, yearToSemesters, getSemesterLabel } from '../services/semesterUtils';
 import QuickAttendance from '../components/QuickAttendance';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -31,10 +31,12 @@ const StaffTimetable: React.FC = () => {
   
   const [selectedDepartment] = useState(currentUser.department || 'Computer Science');
   const [selectedYear, setSelectedYear] = useState<number | ''>('');
+  const [selectedSemester, setSelectedSemester] = useState<number | ''>(''); // NEW: Semester state
   const [selectedClass, setSelectedClass] = useState<string>('');
   const [scheduleData, setScheduleData] = useState<TimetableSession[]>([]);
   const [loading, setLoading] = useState(false);
   const [availableYears, setAvailableYears] = useState<number[]>([]);
+  const [availableSemesters, setAvailableSemesters] = useState<number[]>([]); // NEW: Available semesters for selected year
   const [availableClasses, setAvailableClasses] = useState<string[]>([]);
   const [loadingYears, setLoadingYears] = useState(false);
   const [loadingClasses, setLoadingClasses] = useState(false);
@@ -64,9 +66,25 @@ const StaffTimetable: React.FC = () => {
     fetchYears();
   }, [selectedDepartment]);
 
-  // Fetch available classes when year is selected
+  // Update available semesters when year is selected
   useEffect(() => {
     if (!selectedYear) {
+      setAvailableSemesters([]);
+      setSelectedSemester(''); // Reset semester
+      setAvailableClasses([]);
+      return;
+    }
+
+    // Get semesters for selected year
+    const semesters = yearToSemesters(selectedYear as number);
+    setAvailableSemesters(semesters);
+    setSelectedSemester(''); // Reset semester when year changes
+    setSelectedClass(''); // Reset class when year changes
+  }, [selectedYear]);
+
+  // Fetch available classes when semester is selected
+  useEffect(() => {
+    if (!selectedSemester) {
       setAvailableClasses([]);
       return;
     }
@@ -75,7 +93,7 @@ const StaffTimetable: React.FC = () => {
       setLoadingClasses(true);
       try {
         const response = await apiClient.get(
-          `/teacher/classes?department=${encodeURIComponent(selectedDepartment)}&year=${selectedYear}`
+          `/teacher/classes?department=${encodeURIComponent(selectedDepartment)}&semester=${selectedSemester}`
         );
         console.log('🎓 Available Classes Response:', response.data);
         const classes = response.data.data || [];
@@ -89,11 +107,11 @@ const StaffTimetable: React.FC = () => {
     };
 
     fetchClasses();
-  }, [selectedYear, selectedDepartment]);
+  }, [selectedSemester, selectedDepartment]);
 
   // Fetch teacher's schedule when filters change
   useEffect(() => {
-    if (!selectedYear || !selectedClass) {
+    if (!selectedSemester || !selectedClass) {
       setScheduleData([]);
       return;
     }
@@ -102,7 +120,7 @@ const StaffTimetable: React.FC = () => {
       setLoading(true);
       try {
         const response = await apiClient.get(
-          `/teacher/schedule?department=${encodeURIComponent(selectedDepartment)}&year=${selectedYear}&className=${selectedClass}`
+          `/teacher/schedule?department=${encodeURIComponent(selectedDepartment)}&semester=${selectedSemester}&className=${selectedClass}`
         );
         
         console.log('📅 Staff Timetable API Response:', response.data);
@@ -116,7 +134,7 @@ const StaffTimetable: React.FC = () => {
     };
 
     fetchSchedule();
-  }, [selectedYear, selectedClass, selectedDepartment]);
+  }, [selectedSemester, selectedClass, selectedDepartment]);
 
   // Group sessions by day
   const getSessionsForDay = (day: string): TimetableSession[] => {
@@ -156,7 +174,7 @@ const StaffTimetable: React.FC = () => {
           Select Your Class
         </h3>
         
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           {/* Department Display (Read-only) */}
           <div className="space-y-2">
             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Department Stream</label>
@@ -176,7 +194,6 @@ const StaffTimetable: React.FC = () => {
                 value={selectedYear}
                 onChange={(e) => {
                   setSelectedYear(e.target.value ? Number(e.target.value) : '');
-                  setSelectedClass(''); // Reset class when year changes
                 }}
                 disabled={loadingYears}
                 className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-12 pr-10 py-4 font-black text-[10px] text-slate-900 uppercase tracking-widest outline-none focus:ring-4 focus:ring-indigo-100 focus:border-indigo-200 transition-all appearance-none cursor-pointer shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
@@ -184,6 +201,33 @@ const StaffTimetable: React.FC = () => {
                 <option value="">{loadingYears ? 'Loading...' : 'Select Year'}</option>
                 {availableYears.map(year => (
                   <option key={year} value={year}>{getYearLabel(year)}</option>
+                ))}
+              </select>
+              <div className="absolute inset-y-0 right-5 flex items-center pointer-events-none">
+                <ChevronDown className="w-4 h-4 text-slate-400" />
+              </div>
+            </div>
+          </div>
+
+          {/* Semester Dropdown */}
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Semester</label>
+            <div className="relative group">
+              <div className="absolute inset-y-0 left-5 flex items-center pointer-events-none">
+                <GraduationCap className="w-4 h-4 text-slate-400 group-focus-within:text-indigo-600 transition-colors" />
+              </div>
+              <select 
+                value={selectedSemester}
+                onChange={(e) => {
+                  setSelectedSemester(e.target.value ? Number(e.target.value) : '');
+                  setSelectedClass(''); // Reset class when semester changes
+                }}
+                disabled={!selectedYear}
+                className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-12 pr-10 py-4 font-black text-[10px] text-slate-900 uppercase tracking-widest outline-none focus:ring-4 focus:ring-indigo-100 focus:border-indigo-200 transition-all appearance-none cursor-pointer shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <option value="">{!selectedYear ? 'Select Year First' : 'Select Semester'}</option>
+                {availableSemesters.map(sem => (
+                  <option key={sem} value={sem}>{getSemesterLabel(sem)}</option>
                 ))}
               </select>
               <div className="absolute inset-y-0 right-5 flex items-center pointer-events-none">
@@ -203,10 +247,10 @@ const StaffTimetable: React.FC = () => {
                 value={selectedClass}
                 onChange={(e) => setSelectedClass(e.target.value)}
                 className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-12 pr-10 py-4 font-black text-[10px] text-slate-900 uppercase tracking-widest outline-none focus:ring-4 focus:ring-indigo-100 focus:border-indigo-200 transition-all appearance-none cursor-pointer shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                disabled={!selectedYear || loadingClasses}
+                disabled={!selectedSemester || loadingClasses}
               >
                 <option value="">
-                  {!selectedYear ? 'Select Year First' : loadingClasses ? 'Loading...' : 'Select Class'}
+                  {!selectedSemester ? 'Select Semester First' : loadingClasses ? 'Loading...' : 'Select Class'}
                 </option>
                 {availableClasses.map(cls => (
                   <option key={cls} value={cls}>Class {cls}</option>
@@ -229,15 +273,15 @@ const StaffTimetable: React.FC = () => {
       )}
 
       {/* Schedule Grid */}
-      {!loading && selectedYear && selectedClass && (
+      {!loading && selectedSemester && selectedClass && (
         <div className="bg-white rounded-[4rem] border border-slate-100 card-shadow overflow-hidden">
           <div className="p-10 border-b border-slate-100 bg-gradient-to-br from-indigo-50 to-white">
             <h3 className="text-3xl font-black text-slate-900 tracking-tight flex items-center gap-3">
               <Clock className="w-8 h-8 text-indigo-600" />
-              Weekly Schedule - {getYearLabel(selectedYear as number)} Class {selectedClass}
+              Weekly Schedule - {getSemesterLabel(selectedSemester as number)} Class {selectedClass}
             </h3>
             <p className="text-xs font-black text-indigo-600 uppercase tracking-widest mt-2">
-              {selectedDepartment}
+              {selectedDepartment} • {getYearLabel(selectedYear as number)}
             </p>
           </div>
 
