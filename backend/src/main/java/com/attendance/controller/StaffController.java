@@ -13,9 +13,11 @@ import com.attendance.dto.ApiResponse;
 import com.attendance.dto.StaffRegistrationDTO;
 import com.attendance.model.Staff;
 import com.attendance.model.Subject;
+import com.attendance.model.TimetableSession;
 import com.attendance.model.User;
 import com.attendance.repository.StaffRepository;
 import com.attendance.repository.SubjectRepository;
+import com.attendance.repository.TimetableSessionRepository;
 import com.attendance.repository.UserRepository;
 import com.attendance.service.StaffService;
 import com.attendance.exception.ResourceNotFoundException;
@@ -31,13 +33,16 @@ public class StaffController {
     private final StaffRepository staffRepo;
     private final UserRepository userRepo;
     private final SubjectRepository subjectRepo;
+    private final TimetableSessionRepository timetableRepo;
     private final PasswordEncoder passwordEncoder;
     private final StaffService staffService;
 
-    public StaffController(StaffRepository staffRepo, UserRepository userRepo, SubjectRepository subjectRepo, PasswordEncoder passwordEncoder, StaffService staffService) {
+    public StaffController(StaffRepository staffRepo, UserRepository userRepo, SubjectRepository subjectRepo, 
+                          TimetableSessionRepository timetableRepo, PasswordEncoder passwordEncoder, StaffService staffService) {
         this.staffRepo = staffRepo;
         this.userRepo = userRepo;
         this.subjectRepo = subjectRepo;
+        this.timetableRepo = timetableRepo;
         this.passwordEncoder = passwordEncoder;
         this.staffService = staffService;
     }
@@ -45,6 +50,8 @@ public class StaffController {
     /**
      * Register a new staff member with automatic user account creation
      * POST /api/admin/staff/register
+     * 
+     * ALSO ASSIGNS STAFF TO TIMETABLE SESSIONS FOR THEIR SUBJECT
      */
     @PostMapping("/register")
     public ResponseEntity<ApiResponse<Staff>> registerStaff(@Valid @RequestBody StaffRegistrationDTO dto) {
@@ -103,14 +110,44 @@ public class StaffController {
             
             Staff savedStaff = staffRepo.save(staff);
             
+            // AUTO-ASSIGN STAFF TO TIMETABLE SESSIONS FOR THEIR SUBJECT
+            assignStaffToTimetableSessions(savedStaff);
+            
             return ResponseEntity.status(HttpStatus.CREATED)
-                    .body(ApiResponse.success("Staff registered successfully with subject assignment", savedStaff));
+                    .body(ApiResponse.success("Staff registered successfully with timetable assignment", savedStaff));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to register staff: " + e.getMessage()));
         }
     }
     
+    /**
+     * Assign staff to all timetable sessions that teach their subject
+     */
+    private void assignStaffToTimetableSessions(Staff staff) {
+        try {
+            // If staff has subjects, find and assign them to matching timetable sessions
+            if (staff.getSubjects() != null && !staff.getSubjects().isEmpty()) {
+                for (Subject subject : staff.getSubjects()) {
+                    // Find all timetable sessions for this subject
+                    List<TimetableSession> sessionsForSubject = timetableRepo.findBySubjectIdAndActiveTrue(subject.getId());
+                    
+                    // Assign staff to those sessions
+                    for (TimetableSession session : sessionsForSubject) {
+                        session.setStaff(staff);
+                        timetableRepo.save(session);
+                    }
+                    
+                    System.out.println("✅ Assigned " + staff.getName() + " to " + sessionsForSubject.size() 
+                        + " timetable sessions for subject: " + subject.getSubjectName());
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("⚠️ Warning: Could not auto-assign staff to timetable sessions: " + e.getMessage());
+            // Don't fail the registration if assignment fails
+        }
+    }
+
     /**
      * Generate subject code from subject name
      * Example: "Data Structures" -> "DS101"
@@ -170,6 +207,8 @@ public class StaffController {
     /**
      * Update staff
      * PUT /api/admin/staff/{id}
+     * 
+     * ALSO SYNCS TIMETABLE SESSION ASSIGNMENTS
      */
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<Staff>> update(@PathVariable Long id, @RequestBody Staff staffUpdates) {
@@ -203,7 +242,11 @@ public class StaffController {
                     }
                     
                     Staff updated = staffRepo.save(staff);
-                    return ResponseEntity.ok(ApiResponse.success("Staff updated successfully with subject sync", updated));
+                    
+                    // AUTO-ASSIGN TO TIMETABLE SESSIONS
+                    assignStaffToTimetableSessions(updated);
+                    
+                    return ResponseEntity.ok(ApiResponse.success("Staff updated successfully with timetable sync", updated));
                 })
                 .orElse(ResponseEntity.notFound().build());
     }

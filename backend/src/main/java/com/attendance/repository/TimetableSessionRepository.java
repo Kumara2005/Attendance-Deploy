@@ -53,6 +53,9 @@ public interface TimetableSessionRepository
     List<TimetableSession> findByFacultyIdAndDayOfWeekAndIsActiveTrue(
             @Param("staffId") Long staffId, @Param("dayOfWeek") String dayOfWeek);
     
+    // Find sessions by subject ID for staff assignment
+    List<TimetableSession> findBySubjectIdAndActiveTrue(Long subjectId);
+    
     List<TimetableSession> findByActiveTrue();
     
     // Staff-specific queries for cascading filters
