@@ -6,6 +6,9 @@ import org.springframework.stereotype.Component;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.util.List;
+import java.util.Map;
+import java.util.ArrayList;
+import java.util.stream.Collectors;
 
 /**
  * Database Initializer
@@ -28,7 +31,7 @@ public class DatabaseInitializer implements CommandLineRunner {
         
         try {
             applyAttendanceConstraintsMigration();
-            mergeDuplicateComputerNetworksSubjects();
+            mergeDuplicateSubjects();
             assignExistingStaffToTimetableSessions();
             logger.info("✅ Database initialization completed successfully");
         } catch (Exception e) {
@@ -213,70 +216,76 @@ public class DatabaseInitializer implements CommandLineRunner {
     }
 
     /**
-     * Merge duplicate "COMPUTER NETWORKS" subjects (e.g., ids 2 and 9) into a single canonical id.
-     * This keeps timetable_session and staff_subjects aligned so auto-assignment works for all staff.
-     * Safe to run repeatedly; only acts when multiple rows exist for the same trimmed/upper name.
+     * Merge duplicate subjects (same trimmed/upper name) into a single canonical id.
+     * Keeps timetable_session and staff_subjects aligned so auto-assignment works for all staff.
+     * Safe to run repeatedly; only acts when duplicates exist.
      */
-    private void mergeDuplicateComputerNetworksSubjects() {
+    private void mergeDuplicateSubjects() {
         try {
-            // Find a canonical subject id for COMPUTER NETWORKS (trim + upper)
-            Long canonicalId = jdbcTemplate.queryForObject(
-                "SELECT MIN(id) FROM subject WHERE UPPER(TRIM(name)) = 'COMPUTER NETWORKS'",
-                Long.class
+            // Find canonical ids per normalized name
+            List<Map<String, Object>> dupGroups = jdbcTemplate.queryForList(
+                """
+                SELECT UPPER(TRIM(name)) AS norm_name, MIN(id) AS canonical_id
+                FROM subject
+                GROUP BY UPPER(TRIM(name))
+                HAVING COUNT(*) > 1
+                """
             );
 
-            if (canonicalId == null) {
-                logger.info("ℹ️  No COMPUTER NETWORKS subject found; skipping duplicate merge.");
+            if (dupGroups.isEmpty()) {
+                logger.info("ℹ️  No duplicate subjects detected; nothing to merge.");
                 return;
             }
 
-            // Find duplicate ids (excluding canonical)
-            List<Long> dupIds = jdbcTemplate.query(
-                "SELECT id FROM subject WHERE UPPER(TRIM(name)) = 'COMPUTER NETWORKS' AND id <> ?",
-                (rs, rowNum) -> rs.getLong(1),
-                canonicalId
-            );
+            for (Map<String, Object> group : dupGroups) {
+                String normName = (String) group.get("norm_name");
+                Long canonicalId = ((Number) group.get("canonical_id")).longValue();
 
-            if (dupIds.isEmpty()) {
-                logger.info("ℹ️  No duplicate COMPUTER NETWORKS subjects detected; nothing to merge.");
-                return;
+                List<Long> dupIds = jdbcTemplate.query(
+                    "SELECT id FROM subject WHERE UPPER(TRIM(name)) = ? AND id <> ?",
+                    (rs, rowNum) -> rs.getLong(1),
+                    normName, canonicalId
+                );
+
+                if (dupIds.isEmpty()) {
+                    continue;
+                }
+
+                String dupList = dupIds.stream().map(String::valueOf).collect(Collectors.joining(","));
+                logger.info("🔗 Merging duplicate subjects '{}' into canonical id {}: {}", normName, canonicalId, dupList);
+
+                // Repoint timetable_session
+                int tsUpdated = jdbcTemplate.update(
+                    "UPDATE timetable_session SET subject_id = ? WHERE subject_id IN (" + dupList + ")",
+                    canonicalId
+                );
+
+                // Repoint staff_subjects
+                int ssUpdated = jdbcTemplate.update(
+                    "UPDATE staff_subjects SET subject_id = ? WHERE subject_id IN (" + dupList + ")",
+                    canonicalId
+                );
+
+                // Normalize staff.subject text to canonical subject name
+                String canonicalName = jdbcTemplate.queryForObject(
+                    "SELECT name FROM subject WHERE id = ?",
+                    String.class,
+                    canonicalId
+                );
+                int staffUpdated = jdbcTemplate.update(
+                    "UPDATE staff SET subject = ? WHERE UPPER(TRIM(subject)) = ?",
+                    canonicalName,
+                    normName
+                );
+
+                // Delete duplicate subject rows
+                int deleted = jdbcTemplate.update(
+                    "DELETE FROM subject WHERE id IN (" + dupList + ")"
+                );
+
+                logger.info("✅ Merge complete for '{}'. timetable_session updated: {}, staff_subjects updated: {}, staff text normalized: {}, duplicates deleted: {}",
+                            normName, tsUpdated, ssUpdated, staffUpdated, deleted);
             }
-
-            logger.info("🔗 Merging duplicate COMPUTER NETWORKS subjects into canonical id {}: {}", canonicalId, dupIds);
-
-            // Repoint timetable_session
-            int tsUpdated = jdbcTemplate.update(
-                String.format(
-                    "UPDATE timetable_session SET subject_id = %d WHERE subject_id IN (%s)",
-                    canonicalId,
-                    dupIds.stream().map(String::valueOf).reduce((a, b) -> a + "," + b).orElse("0")
-                )
-            );
-
-            // Repoint staff_subjects
-            int ssUpdated = jdbcTemplate.update(
-                String.format(
-                    "UPDATE staff_subjects SET subject_id = %d WHERE subject_id IN (%s)",
-                    canonicalId,
-                    dupIds.stream().map(String::valueOf).reduce((a, b) -> a + "," + b).orElse("0")
-                )
-            );
-
-            // Normalize staff.subject text
-            int staffUpdated = jdbcTemplate.update(
-                "UPDATE staff SET subject = 'COMPUTER NETWORKS' WHERE subject LIKE '%COMPUTER NETWORKS%'"
-            );
-
-            // Delete duplicate subject rows
-            int deleted = jdbcTemplate.update(
-                String.format(
-                    "DELETE FROM subject WHERE id IN (%s)",
-                    dupIds.stream().map(String::valueOf).reduce((a, b) -> a + "," + b).orElse("0")
-                )
-            );
-
-            logger.info("✅ Merge complete. timetable_session updated: {}, staff_subjects updated: {}, staff text normalized: {}, duplicates deleted: {}",
-                        tsUpdated, ssUpdated, staffUpdated, deleted);
 
         } catch (Exception e) {
             logger.warn("⚠️  Non-critical error during duplicate subject merge: " + e.getMessage());
