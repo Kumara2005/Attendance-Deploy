@@ -85,6 +85,13 @@ public class StaffDashboardService {
                 int semester = firstSession.getSemester();
                 String section = firstSession.getSection();
                 String year = "Year " + ((semester + 1) / 2);
+
+                // Derive subject from the sessions mapped to this group (use distinct to cover multiple subjects)
+                String subjectName = entry.getValue().stream()
+                        .map(TimetableSession::getSubjectName)
+                        .filter(Objects::nonNull)
+                        .findFirst()
+                        .orElse(staff.getSubject());
                 
                 // Get student count for this department and semester
                 Long studentCount = studentRepository.countByDepartmentAndSemester(department, semester);
@@ -98,7 +105,7 @@ public class StaffDashboardService {
                     department,
                     "B.Sc " + department, // className
                     section != null ? section : "A",
-                    staff.getSubject(),
+                    subjectName,
                     studentCount.intValue(),
                     avgAttendance != null ? Math.round(avgAttendance * 100.0) / 100.0 : 0.0
                 );
@@ -148,12 +155,20 @@ public class StaffDashboardService {
     }
 
     private StaffInfoDTO buildStaffInfo(Staff staff) {
+        List<String> subjects = Optional.ofNullable(staff.getSubjects())
+                .orElse(List.of())
+                .stream()
+                .map(sub -> sub.getSubjectName())
+                .filter(Objects::nonNull)
+                .toList();
+        String primarySubject = !subjects.isEmpty() ? subjects.get(0) : staff.getSubject();
         return new StaffInfoDTO(
             String.valueOf(staff.getId()),
             staff.getName(),
             staff.getEmail(),
             staff.getDepartment(),
-            staff.getSubject(),
+            primarySubject,
+            subjects,
             staff.getEmployeeCode()
         );
     }

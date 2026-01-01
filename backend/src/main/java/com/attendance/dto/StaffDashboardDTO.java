@@ -41,18 +41,20 @@ public class StaffDashboardDTO {
         private String email;
         private String department;
         private String subject;
+        private java.util.List<String> subjects;
         private String employeeCode;
         
         // Constructors
         public StaffInfoDTO() {}
         
         public StaffInfoDTO(String id, String name, String email, String department, 
-                           String subject, String employeeCode) {
+                           String subject, java.util.List<String> subjects, String employeeCode) {
             this.id = id;
             this.name = name;
             this.email = email;
             this.department = department;
             this.subject = subject;
+            this.subjects = subjects;
             this.employeeCode = employeeCode;
         }
         
@@ -71,6 +73,9 @@ public class StaffDashboardDTO {
         
         public String getSubject() { return subject; }
         public void setSubject(String subject) { this.subject = subject; }
+
+        public java.util.List<String> getSubjects() { return subjects; }
+        public void setSubjects(java.util.List<String> subjects) { this.subjects = subjects; }
         
         public String getEmployeeCode() { return employeeCode; }
         public void setEmployeeCode(String employeeCode) { this.employeeCode = employeeCode; }
