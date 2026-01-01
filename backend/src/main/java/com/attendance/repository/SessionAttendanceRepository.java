@@ -23,11 +23,12 @@ public interface SessionAttendanceRepository extends JpaRepository<SessionAttend
 
 	List<SessionAttendance> findByDateBetween(LocalDate from, LocalDate to);
 	
+	@Query("SELECT sa FROM SessionAttendance sa WHERE sa.student.id = :studentId AND sa.timetableSession.id = :sessionId AND sa.date = :date")
 	Optional<SessionAttendance>
 	findByStudentIdAndTimetableSessionIdAndDate(
-	    Long studentId,
-	    Long sessionId,
-	    LocalDate date
+	    @Param("studentId") Long studentId,
+	    @Param("sessionId") Long sessionId,
+	    @Param("date") LocalDate date
 	);
 	
 	// Additional queries for statistics
