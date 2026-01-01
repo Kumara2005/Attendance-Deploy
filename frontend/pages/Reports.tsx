@@ -1,8 +1,9 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { FileText, PieChart as PieIcon, CheckCircle2, ShieldCheck, User, ChevronDown, CalendarDays } from 'lucide-react';
-import { MOCK_STUDENTS } from '../constants';
-import { UserRole, User as UserType, Student } from '../types';
+import { UserRole, User as UserType } from '../types';
+import reportService, { AttendanceReportDTO } from '../services/reportService';
+import authService from '../services/authService';
 
 const Reports: React.FC = () => {
   const role = (window as any).currentUserRole || UserRole.ADMIN;
@@ -13,6 +14,13 @@ const Reports: React.FC = () => {
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const [selectedYear, setSelectedYear] = useState<string>('');
+  const [targetDate, setTargetDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedSemester, setSelectedSemester] = useState<string>('');
+  
+  // State for report data
+  const [reportData, setReportData] = useState<AttendanceReportDTO[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleExport = (format: string) => {
     const reportSubject = isStudent ? 'Your personal' : reportType;
@@ -20,23 +28,58 @@ const Reports: React.FC = () => {
     alert(`${reportSubject} Report${yearDetail} generated and downloaded as ${format.toUpperCase()}`);
   };
 
-  // Filter Logic: Scoped by Student Identity (if student) and Academic Year
-  const displayStudents = useMemo(() => {
-    let filtered = MOCK_STUDENTS;
+  // Fetch report data based on filters
+  const fetchReportData = async () => {
+    setLoading(true);
+    setError(null);
     
-    // 1. Identity Isolation
-    if (isStudent) {
-      filtered = filtered.filter(s => s.name === currentUser?.name);
+    try {
+      let data: AttendanceReportDTO[] = [];
+      const yearNum = selectedYear ? parseInt(selectedYear.replace('Year ', '')) : undefined;
+      const userData = authService.getCurrentUser();
+      const department = currentUser?.department;
+      
+      if (isStudent) {
+        // For student, fetch their personal report
+        const rollNumber = userData?.rollNumber || userData?.username;
+        if (rollNumber) {
+          const studentReport = await reportService.getStudentReport(
+            rollNumber,
+            reportType === 'Monthly' && fromDate ? fromDate : undefined,
+            reportType === 'Monthly' && toDate ? toDate : undefined
+          );
+          data = studentReport ? [studentReport] : [];
+        }
+      } else {
+        // For staff/admin
+        if (reportType === 'Daily') {
+          data = await reportService.getDailyReport(targetDate, department, yearNum);
+        } else if (reportType === 'Monthly') {
+          if (fromDate && toDate) {
+            data = await reportService.getPeriodicReport(fromDate, toDate, department, yearNum);
+          }
+        } else if (reportType === 'Semester') {
+          const semesterNum = selectedSemester ? parseInt(selectedSemester) : undefined;
+          data = await reportService.getSemesterReport(department, yearNum, semesterNum);
+        }
+      }
+      
+      setReportData(data);
+    } catch (err: any) {
+      console.error('Error fetching report:', err);
+      setError(err.response?.data?.message || 'Failed to load report data');
+      setReportData([]);
+    } finally {
+      setLoading(false);
     }
+  };
 
-    // 2. Academic Year Filter (Department Scoped by default if admin/staff usually looks at their own context)
-    // For B.Sc Computer Science specifically as per requirements
-    if (selectedYear && selectedYear !== 'All Years') {
-      filtered = filtered.filter(s => s.year === selectedYear || s.section === selectedYear);
+  // Auto-fetch semester report on mount for staff
+  useEffect(() => {
+    if (!isStudent) {
+      fetchReportData();
     }
-
-    return filtered;
-  }, [isStudent, currentUser, selectedYear]);
+  }, []);
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12 max-w-[1400px] mx-auto">
@@ -140,7 +183,12 @@ const Reports: React.FC = () => {
           {reportType === 'Daily' && (
             <div className="flex-1 min-w-[200px]">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Target Date</label>
-              <input type="date" className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-6 py-4 outline-none focus:ring-4 focus:ring-indigo-100 transition-all font-bold text-slate-900" />
+              <input 
+                type="date" 
+                value={targetDate}
+                onChange={(e) => setTargetDate(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-6 py-4 outline-none focus:ring-4 focus:ring-indigo-100 transition-all font-bold text-slate-900" 
+              />
             </div>
           )}
           {reportType === 'Monthly' && (
@@ -157,15 +205,28 @@ const Reports: React.FC = () => {
           )}
           {reportType === 'Semester' && (
             <div className="flex-1 min-w-[200px]">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Semester Period</label>
-              <select className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-6 py-4 outline-none focus:ring-4 focus:ring-indigo-100 transition-all font-bold text-slate-900 appearance-none">
-                 <option>Spring Semester 2024</option>
-                 <option>Fall Semester 2023</option>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Semester</label>
+              <select 
+                value={selectedSemester}
+                onChange={(e) => setSelectedSemester(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-6 py-4 outline-none focus:ring-4 focus:ring-indigo-100 transition-all font-bold text-slate-900 appearance-none"
+              >
+                <option value="">All Semesters</option>
+                <option value="1">Semester 1</option>
+                <option value="2">Semester 2</option>
+                <option value="3">Semester 3</option>
+                <option value="4">Semester 4</option>
+                <option value="5">Semester 5</option>
+                <option value="6">Semester 6</option>
               </select>
             </div>
           )}
-          <button className="px-12 py-4 bg-indigo-600 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-xl shadow-indigo-600/20 active:scale-95 transition-all">
-             Generate {isStudent ? 'My View' : 'Results'}
+          <button 
+            onClick={fetchReportData}
+            disabled={loading}
+            className="px-12 py-4 bg-indigo-600 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-xl shadow-indigo-600/20 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+             {loading ? 'Loading...' : `Generate ${isStudent ? 'My View' : 'Results'}`}
           </button>
         </div>
       </div>
@@ -190,36 +251,52 @@ const Reports: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {displayStudents.map((student) => (
-                <tr key={student.id} className="group hover:bg-slate-50 transition-colors">
-                  <td className="px-10 py-6">
-                    <div className="flex items-center gap-4">
-                       <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-black text-sm">
-                         {student.name.charAt(0)}
-                       </div>
-                       <div className="flex flex-col">
-                         <div className="font-black text-slate-900 text-sm">{student.name}</div>
-                         <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{student.rollNumber}</div>
-                       </div>
-                    </div>
-                  </td>
-                  <td className="px-10 py-6 text-sm font-bold text-slate-500">{student.year || student.section}</td>
-                  <td className="px-10 py-6 text-sm font-bold text-slate-500">45</td>
-                  <td className="px-10 py-6 text-sm font-black text-emerald-600">42</td>
-                  <td className="px-10 py-6 font-black text-slate-900">{student.attendancePercentage}%</td>
-                  <td className="px-10 py-6">
-                     <div className={`inline-flex px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest ${
-                       student.attendancePercentage >= 75 ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'
-                     }`}>
-                        {student.attendancePercentage >= 75 ? 'Qualified' : 'Shortage'}
-                     </div>
-                  </td>
-                </tr>
-              ))}
-              {displayStudents.length === 0 && (
+              {loading ? (
                 <tr>
                   <td colSpan={6} className="px-10 py-20 text-center">
-                    <p className="text-slate-400 font-black uppercase tracking-widest text-xs">No records available for the selected parameters.</p>
+                    <div className="flex flex-col items-center gap-4">
+                      <div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+                      <p className="text-slate-400 font-black uppercase tracking-widest text-xs">Loading report data...</p>
+                    </div>
+                  </td>
+                </tr>
+              ) : error ? (
+                <tr>
+                  <td colSpan={6} className="px-10 py-20 text-center">
+                    <p className="text-rose-600 font-black uppercase tracking-widest text-xs">{error}</p>
+                  </td>
+                </tr>
+              ) : reportData.length > 0 ? (
+                reportData.map((student, index) => (
+                  <tr key={`${student.studentId}-${index}`} className="group hover:bg-slate-50 transition-colors">
+                    <td className="px-10 py-6">
+                      <div className="flex items-center gap-4">
+                         <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-black text-sm">
+                           {student.studentName.charAt(0)}
+                         </div>
+                         <div className="flex flex-col">
+                           <div className="font-black text-slate-900 text-sm">{student.studentName}</div>
+                           <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{student.rollNumber}</div>
+                         </div>
+                      </div>
+                    </td>
+                    <td className="px-10 py-6 text-sm font-bold text-slate-500">{student.year}</td>
+                    <td className="px-10 py-6 text-sm font-bold text-slate-500">{student.totalSessions}</td>
+                    <td className="px-10 py-6 text-sm font-black text-emerald-600">{student.presentSessions}</td>
+                    <td className="px-10 py-6 font-black text-slate-900">{Math.round(student.attendancePercentage)}%</td>
+                    <td className="px-10 py-6">
+                       <div className={`inline-flex px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest ${
+                         student.complianceStatus === 'Qualified' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'
+                       }`}>
+                          {student.complianceStatus}
+                       </div>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={6} className="px-10 py-20 text-center">
+                    <p className="text-slate-400 font-black uppercase tracking-widest text-xs">No records available. Click "Generate Results" to load data.</p>
                   </td>
                 </tr>
               )}
