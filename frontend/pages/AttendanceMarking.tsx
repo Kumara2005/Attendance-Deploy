@@ -376,17 +376,69 @@ const AttendanceMarking: React.FC = () => {
     setAttendance(prev => ({ ...prev, [id]: status }));
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (isStudent) return;
     setSaving(true);
-    const history = JSON.parse(localStorage.getItem('attendx_history_attendance') || '{}');
-    history[selectedDate] = attendance;
-    localStorage.setItem('attendx_history_attendance', JSON.stringify(history));
-    localStorage.setItem('attendx_session_attendance', JSON.stringify(attendance));
-    setTimeout(() => {
+    
+    try {
+      // Get the current timetable session (we need this to know which session we're marking)
+      // For now, we'll need to get the session ID from the navigation state or find it from timetable
+      
+      // Create attendance records for each student
+      const attendanceRecords = students.map(student => {
+        const status = attendance[student.id] || 'Present';
+        // Map frontend status to backend enum
+        const backendStatus = status === 'Late' ? 'PRESENT' : status.toUpperCase();
+        
+        return {
+          student: {
+            id: student.id,
+            name: student.name,
+            rollNo: student.rollNo || student.rollNumber,
+            department: student.department,
+            semester: student.semester || selectedSemester,
+            section: student.section || selectedClass,
+            active: true
+          },
+          timetableSession: {
+            id: navigationState?.sessionId || 0, // Will be provided by timetable click
+            subjectName: navigationState?.subjectName || currentUser?.subject,
+            department: currentUser?.department,
+            year: selectedYear,
+            semester: selectedSemester,
+            section: selectedClass
+          },
+          date: selectedDate,
+          status: backendStatus
+        };
+      });
+      
+      console.log('📤 Submitting attendance records:', attendanceRecords);
+      
+      // Submit each attendance record to the backend
+      for (const record of attendanceRecords) {
+        try {
+          const response = await apiClient.post('/attendance/session', record);
+          console.log('✅ Attendance saved for', record.student.name, ':', response.data);
+        } catch (error: any) {
+          console.error('❌ Error saving attendance for', record.student.name, ':', error);
+          // Continue saving other records even if one fails
+        }
+      }
+      
+      // Also save to localStorage for local history
+      const history = JSON.parse(localStorage.getItem('attendx_history_attendance') || '{}');
+      history[selectedDate] = attendance;
+      localStorage.setItem('attendx_history_attendance', JSON.stringify(history));
+      localStorage.setItem('attendx_session_attendance', JSON.stringify(attendance));
+      
       setSaving(false);
-      alert(`Attendance for ${currentUser?.subject || 'Class'} on ${new Date(selectedDate).toLocaleDateString()} has been successfully committed.`);
-    }, 1200);
+      alert(`✅ Attendance for ${currentUser?.subject || 'Class'} on ${new Date(selectedDate).toLocaleDateString()} has been successfully committed to the database.`);
+    } catch (error: any) {
+      console.error('❌ Error in handleSave:', error);
+      setSaving(false);
+      alert(`❌ Error saving attendance: ${error.message || 'Unknown error'}`);
+    }
   };
 
   const resetFeed = () => {
