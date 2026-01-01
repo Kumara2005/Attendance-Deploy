@@ -28,7 +28,16 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
     
     List<Student> findByDepartmentAndSemester(String department, int semester);
     
-    List<Student> findByDepartmentAndSemesterAndSectionAndActiveTrue(String department, int semester, String section);
+    /**
+     * Fetch students by department, semester, section and active status
+     * Using native SQL to ensure proper boolean handling
+     */
+    @Query(value = "SELECT * FROM student WHERE department = :department AND semester = :semester AND section = :section AND active = true", 
+           nativeQuery = true)
+    List<Student> findByDepartmentAndSemesterAndSectionAndActiveTrue(
+        @Param("department") String department, 
+        @Param("semester") int semester, 
+        @Param("section") String section);
 
     List<Student> findByDepartmentAndSemesterAndActiveTrue(String department, int semester);
 }
