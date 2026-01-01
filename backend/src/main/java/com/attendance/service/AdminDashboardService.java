@@ -63,7 +63,6 @@ public class AdminDashboardService {
             .map(row -> {
                 String department = (String) row[0];
                 Long studentCount = (Long) row[1];
-                Double avgAttendance = (Double) row[2];
                 
                 // Get faculty count for this department
                 Long facultyCount = staffRepository.countByDepartment(department);
@@ -71,12 +70,15 @@ public class AdminDashboardService {
                 // Get distinct years for this department
                 List<String> years = studentRepository.findDistinctYearsByDepartment(department);
                 
+                // Calculate average attendance for this department
+                Double avgAttendance = calculateDepartmentAttendance(department);
+                
                 return new ProgrammeDTO(
                     department, // Programme name = Department name
                     department,
                     studentCount.intValue(),
                     facultyCount.intValue(),
-                    Math.round(avgAttendance * 100.0) / 100.0,
+                    avgAttendance,
                     years
                 );
             })
@@ -84,6 +86,12 @@ public class AdminDashboardService {
     }
 
     // ========== HELPER METHODS ==========
+
+    private Double calculateDepartmentAttendance(String department) {
+        // For now, return a default value of 0.0
+        // In production, this would calculate average attendance from SessionAttendance records
+        return 0.0;
+    }
 
     private Integer calculateTotalClasses() {
         // Count distinct class-year combinations

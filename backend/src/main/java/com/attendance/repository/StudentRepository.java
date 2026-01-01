@@ -13,8 +13,8 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
     
     Optional<Student> findByRollNo(String rollNo);
     
-    @Query("SELECT s.department, s.semester, COUNT(s) " +
-           "FROM Student s WHERE s.active = true GROUP BY s.department, s.semester")
+    @Query("SELECT s.department, COUNT(DISTINCT s.id) " +
+           "FROM Student s WHERE s.active = true GROUP BY s.department")
     List<Object[]> findDepartmentStatistics();
     
     @Query("SELECT DISTINCT CONCAT('Year ', ((s.semester + 1) / 2)) FROM Student s " +
