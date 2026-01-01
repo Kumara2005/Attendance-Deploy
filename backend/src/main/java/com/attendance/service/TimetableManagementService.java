@@ -2,7 +2,11 @@ package com.attendance.service;
 
 import org.springframework.stereotype.Service;
 import com.attendance.model.TimetableSession;
+import com.attendance.model.Staff;
 import com.attendance.repository.TimetableSessionRepository;
+import com.attendance.repository.StaffRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
@@ -13,10 +17,15 @@ import java.util.List;
 @Service
 public class TimetableManagementService {
 
-    private final TimetableSessionRepository repository;
+    private static final Logger logger = LoggerFactory.getLogger(TimetableManagementService.class);
 
-    public TimetableManagementService(TimetableSessionRepository repository) {
+    private final TimetableSessionRepository repository;
+    private final StaffRepository staffRepository;
+
+    public TimetableManagementService(TimetableSessionRepository repository,
+                                     StaffRepository staffRepository) {
         this.repository = repository;
+        this.staffRepository = staffRepository;
     }
 
     /**
@@ -35,14 +44,26 @@ public class TimetableManagementService {
 
     /**
      * Create new session
+     * Auto-assigns staff if a staff member teaches this subject
      */
     public TimetableSession createSession(TimetableSession session) {
         session.setActive(true);
-        return repository.save(session);
+        
+        // Auto-assign staff if subject is assigned and staff exists for this subject
+        if (session.getSubject() != null && session.getStaff() == null) {
+            autoAssignStaffToSession(session);
+        }
+        
+        TimetableSession saved = repository.save(session);
+        logger.info("✅ Created timetable session: {} {} at {} for subject: {}", 
+                    session.getDayOfWeek(), session.getStartTime(), session.getRoomNumber(),
+                    session.getSubject() != null ? session.getSubject().getSubjectName() : "N/A");
+        return saved;
     }
 
     /**
      * Update existing session
+     * Auto-assigns staff if subject changed and staff exists for the new subject
      */
     public TimetableSession updateSession(Long id, TimetableSession updatedSession) {
         TimetableSession existing = repository.findById(id)
@@ -59,7 +80,48 @@ public class TimetableManagementService {
         existing.setSection(updatedSession.getSection());
         existing.setRoomNumber(updatedSession.getRoomNumber());
         
+        // Auto-assign staff if subject is set and staff is not manually assigned
+        if (existing.getSubject() != null && existing.getStaff() == null) {
+            autoAssignStaffToSession(existing);
+        }
+        
         return repository.save(existing);
+    }
+
+    /**
+     * Auto-assign staff to session based on subject
+     * Finds staff members who teach this subject and assigns the first one
+     */
+    private void autoAssignStaffToSession(TimetableSession session) {
+        if (session.getSubject() == null) {
+            return;
+        }
+        
+        Long subjectId = session.getSubject().getId();
+        
+        // Find all active staff who have this subject in their subjects list
+        List<Staff> allStaff = staffRepository.findAll();
+        Staff assignedStaff = null;
+        
+        for (Staff staff : allStaff) {
+            if (staff.isActive() && staff.getSubjects() != null) {
+                boolean hasSubject = staff.getSubjects().stream()
+                    .anyMatch(subject -> subject.getId().equals(subjectId));
+                if (hasSubject) {
+                    assignedStaff = staff;
+                    break;
+                }
+            }
+        }
+        
+        if (assignedStaff != null) {
+            session.setStaff(assignedStaff);
+            logger.info("🔗 Auto-assigned staff {} to session for subject: {}", 
+                        assignedStaff.getName(), session.getSubject().getSubjectName());
+        } else {
+            logger.info("⚠️  No staff found for subject: {} - session will remain unassigned", 
+                        session.getSubject().getSubjectName());
+        }
     }
 
     /**
