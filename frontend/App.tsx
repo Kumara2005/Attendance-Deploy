@@ -144,6 +144,7 @@ const AppContent: React.FC = () => {
             <Route path="/students" element={<StudentManagement userRole={user?.role} />} />
             <Route path="/attendance" element={<AttendanceMarking />} />
             <Route path="/staff/timetable" element={<StaffTimetable />} />
+            <Route path="/admin/timetable" element={<TimetableManagement />} />
             <Route path="/reports" element={<Reports />} />
             <Route path="/settings" element={<AdminSettings />} />
             <Route path="/test-data" element={<TestDataSetup />} />

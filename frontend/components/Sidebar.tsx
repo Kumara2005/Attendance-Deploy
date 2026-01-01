@@ -11,6 +11,7 @@ import {
   GraduationCap,
   ShieldAlert,
   BookMarked,
+  CalendarDays,
   Zap
 } from 'lucide-react';
 import { User, UserRole } from '../types';
@@ -64,6 +65,12 @@ const Sidebar: React.FC<SidebarProps> = ({ user, logout }) => {
       icon: FileSpreadsheet, 
       path: '/reports', 
       roles: [UserRole.STAFF, UserRole.STUDENT] 
+    },
+    { 
+      name: 'Timetable Management', 
+      icon: CalendarDays, 
+      path: '/admin/timetable', 
+      roles: [UserRole.ADMIN] 
     },
     { 
       name: 'Settings', 
