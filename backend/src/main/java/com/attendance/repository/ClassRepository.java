@@ -55,4 +55,6 @@ public interface ClassRepository extends JpaRepository<Classes, Long> {
         @Param("year") int year,
         @Param("semester") int semester
     );
+
+    Long countByActiveTrue();
 }

@@ -21,13 +21,16 @@ public class AdminDashboardService {
     private final StudentRepository studentRepository;
     private final StaffRepository staffRepository;
     private final SessionAttendanceRepository attendanceRepository;
+    private final ClassRepository classRepository;
 
     public AdminDashboardService(StudentRepository studentRepository,
                                 StaffRepository staffRepository,
-                                SessionAttendanceRepository attendanceRepository) {
+                                SessionAttendanceRepository attendanceRepository,
+                                ClassRepository classRepository) {
         this.studentRepository = studentRepository;
         this.staffRepository = staffRepository;
         this.attendanceRepository = attendanceRepository;
+        this.classRepository = classRepository;
     }
 
     /**
@@ -93,8 +96,9 @@ public class AdminDashboardService {
     }
 
     private Integer calculateTotalClasses() {
-        // Count distinct class-year combinations
-        return studentRepository.countDistinctClassYearCombinations();
+        // Count active classes from the classes table to reflect actual registry
+        Long count = classRepository.countByActiveTrue();
+        return count != null ? count.intValue() : 0;
     }
 
     private Double calculateOverallAttendance() {

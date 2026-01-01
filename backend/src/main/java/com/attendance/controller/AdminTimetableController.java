@@ -7,6 +7,7 @@ import com.attendance.model.TimetableSession;
 import com.attendance.repository.StaffRepository;
 import com.attendance.repository.SubjectRepository;
 import com.attendance.repository.TimetableSessionRepository;
+import com.attendance.repository.ClassRepository;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -28,14 +29,17 @@ public class AdminTimetableController {
     private final TimetableSessionRepository timetableRepository;
     private final SubjectRepository subjectRepository;
     private final StaffRepository staffRepository;
+    private final ClassRepository classRepository;
 
     public AdminTimetableController(
             TimetableSessionRepository timetableRepository,
             SubjectRepository subjectRepository,
-            StaffRepository staffRepository) {
+            StaffRepository staffRepository,
+            ClassRepository classRepository) {
         this.timetableRepository = timetableRepository;
         this.subjectRepository = subjectRepository;
         this.staffRepository = staffRepository;
+        this.classRepository = classRepository;
     }
 
     /**
@@ -143,6 +147,12 @@ public class AdminTimetableController {
             if (staff != null) {
                 session.setStaff(staff);
             }
+
+            // Bind classEntity based on department, semester -> year, and section if available
+            int year = (request.getSemester() + 1) / 2;
+            classRepository.findByDepartmentAndYearAndSemesterAndSection(
+                request.getDepartment(), year, request.getSemester(), request.getSection()
+            ).ifPresent(session::setClassEntity);
 
             TimetableSession savedSession = timetableRepository.save(session);
 
