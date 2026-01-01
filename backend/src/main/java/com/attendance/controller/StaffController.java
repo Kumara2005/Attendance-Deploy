@@ -1,6 +1,7 @@
 package com.attendance.controller;
 
 import java.util.List;
+import java.util.ArrayList;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -11,8 +12,10 @@ import org.springframework.web.bind.annotation.*;
 import com.attendance.dto.ApiResponse;
 import com.attendance.dto.StaffRegistrationDTO;
 import com.attendance.model.Staff;
+import com.attendance.model.Subject;
 import com.attendance.model.User;
 import com.attendance.repository.StaffRepository;
+import com.attendance.repository.SubjectRepository;
 import com.attendance.repository.UserRepository;
 import com.attendance.service.StaffService;
 import com.attendance.exception.ResourceNotFoundException;
@@ -27,12 +30,14 @@ public class StaffController {
 
     private final StaffRepository staffRepo;
     private final UserRepository userRepo;
+    private final SubjectRepository subjectRepo;
     private final PasswordEncoder passwordEncoder;
     private final StaffService staffService;
 
-    public StaffController(StaffRepository staffRepo, UserRepository userRepo, PasswordEncoder passwordEncoder, StaffService staffService) {
+    public StaffController(StaffRepository staffRepo, UserRepository userRepo, SubjectRepository subjectRepo, PasswordEncoder passwordEncoder, StaffService staffService) {
         this.staffRepo = staffRepo;
         this.userRepo = userRepo;
+        this.subjectRepo = subjectRepo;
         this.passwordEncoder = passwordEncoder;
         this.staffService = staffService;
     }
@@ -76,14 +81,59 @@ public class StaffController {
             staff.setUser(savedUser);
             staff.setActive(true);
             
+            // AUTO-POPULATE staff_subjects table if subject is provided
+            if (dto.getSubject() != null && !dto.getSubject().isBlank()) {
+                Subject subject = subjectRepo.findBySubjectName(dto.getSubject())
+                    .orElseGet(() -> {
+                        // Create new subject if it doesn't exist
+                        Subject newSubject = new Subject();
+                        newSubject.setSubjectName(dto.getSubject());
+                        newSubject.setSubjectCode(generateSubjectCode(dto.getSubject()));
+                        newSubject.setDepartment(dto.getDepartment());
+                        newSubject.setSemester(1); // Default semester
+                        newSubject.setCredits(4); // Default credits
+                        return subjectRepo.save(newSubject);
+                    });
+                
+                // Link staff to subject (populates staff_subjects table)
+                List<Subject> subjects = new ArrayList<>();
+                subjects.add(subject);
+                staff.setSubjects(subjects);
+            }
+            
             Staff savedStaff = staffRepo.save(staff);
             
             return ResponseEntity.status(HttpStatus.CREATED)
-                    .body(ApiResponse.success("Staff registered successfully", savedStaff));
+                    .body(ApiResponse.success("Staff registered successfully with subject assignment", savedStaff));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to register staff: " + e.getMessage()));
         }
+    }
+    
+    /**
+     * Generate subject code from subject name
+     * Example: "Data Structures" -> "DS101"
+     */
+    private String generateSubjectCode(String subjectName) {
+        if (subjectName == null || subjectName.isBlank()) {
+            return "SUB" + System.currentTimeMillis() % 1000;
+        }
+        
+        // Take first letters of each word
+        String[] words = subjectName.trim().split("\\s+");
+        StringBuilder code = new StringBuilder();
+        
+        for (String word : words) {
+            if (!word.isEmpty()) {
+                code.append(word.charAt(0));
+            }
+        }
+        
+        // Add random number to make it unique
+        code.append(String.format("%03d", (int)(Math.random() * 1000)));
+        
+        return code.toString().toUpperCase();
     }
 
     /**
@@ -131,8 +181,29 @@ public class StaffController {
                     staff.setPhone(staffUpdates.getPhone());
                     staff.setQualification(staffUpdates.getQualification());
                     staff.setExperience(staffUpdates.getExperience());
+                    
+                    // AUTO-UPDATE staff_subjects table if subject changed
+                    if (staffUpdates.getSubject() != null && !staffUpdates.getSubject().isBlank()) {
+                        Subject subject = subjectRepo.findBySubjectName(staffUpdates.getSubject())
+                            .orElseGet(() -> {
+                                // Create new subject if it doesn't exist
+                                Subject newSubject = new Subject();
+                                newSubject.setSubjectName(staffUpdates.getSubject());
+                                newSubject.setSubjectCode(generateSubjectCode(staffUpdates.getSubject()));
+                                newSubject.setDepartment(staffUpdates.getDepartment());
+                                newSubject.setSemester(1); // Default semester
+                                newSubject.setCredits(4); // Default credits
+                                return subjectRepo.save(newSubject);
+                            });
+                        
+                        // Update staff-subject relationship
+                        List<Subject> subjects = new ArrayList<>();
+                        subjects.add(subject);
+                        staff.setSubjects(subjects);
+                    }
+                    
                     Staff updated = staffRepo.save(staff);
-                    return ResponseEntity.ok(ApiResponse.success("Staff updated successfully", updated));
+                    return ResponseEntity.ok(ApiResponse.success("Staff updated successfully with subject sync", updated));
                 })
                 .orElse(ResponseEntity.notFound().build());
     }
