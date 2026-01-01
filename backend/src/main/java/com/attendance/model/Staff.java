@@ -88,10 +88,6 @@ public class Staff {
         this.department = department;
     }
 
-    public String getSubject() {
-        return subject;
-    }
-
     public void setSubject(String subject) {
         this.subject = subject;
     }
