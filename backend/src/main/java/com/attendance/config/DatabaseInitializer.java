@@ -27,6 +27,7 @@ public class DatabaseInitializer implements CommandLineRunner {
         
         try {
             applyAttendanceConstraintsMigration();
+            assignExistingStaffToTimetableSessions();
             logger.info("✅ Database initialization completed successfully");
         } catch (Exception e) {
             logger.error("❌ Error during database initialization: " + e.getMessage(), e);
@@ -137,6 +138,53 @@ public class DatabaseInitializer implements CommandLineRunner {
         } catch (Exception e) {
             logger.error("❌ Error applying attendance constraints migration: " + e.getMessage(), e);
             throw new RuntimeException("Database migration failed", e);
+        }
+    }
+
+    /**
+     * Assign existing staff to timetable sessions matching their subject
+     * This handles staff registered before the auto-assignment feature was implemented
+     */
+    private void assignExistingStaffToTimetableSessions() {
+        logger.info("📚 Assigning existing staff to timetable sessions...");
+        
+        try {
+            String query = """
+                SELECT DISTINCT ss.staff_id, s.name, sub.id as subject_id, sub.name as subject_name
+                FROM staff_subjects ss
+                JOIN staff s ON ss.staff_id = s.id
+                JOIN subject sub ON ss.subject_id = sub.id
+                WHERE s.active = true
+                """;
+            
+            jdbcTemplate.query(query, (rs) -> {
+                Long staffId = rs.getLong("staff_id");
+                String staffName = rs.getString("name");
+                Long subjectId = rs.getLong("subject_id");
+                String subjectName = rs.getString("subject_name");
+                
+                try {
+                    // Find all timetable sessions for this subject that don't have a staff assigned
+                    int updated = jdbcTemplate.update(
+                        "UPDATE timetable_session SET staff_id = ? WHERE subject_id = ? AND staff_id IS NULL AND active = true",
+                        staffId, subjectId
+                    );
+                    
+                    if (updated > 0) {
+                        logger.info("  ✅ Assigned {} to {} timetable session(s) for subject: {}", 
+                                    staffName, updated, subjectName);
+                    }
+                } catch (Exception e) {
+                    logger.warn("  ⚠️  Could not assign {} to subject {}: {}", 
+                                staffName, subjectName, e.getMessage());
+                }
+            });
+            
+            logger.info("✅ Staff assignment initialization complete");
+            
+        } catch (Exception e) {
+            logger.warn("⚠️  Non-critical error during staff assignment: " + e.getMessage());
+            // Don't throw - this is a convenience feature, not critical
         }
     }
 }
