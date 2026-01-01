@@ -36,6 +36,62 @@ public class TestDataController {
     }
 
     /**
+     * POST /api/test/seed-students
+     * Seeds sample students for testing
+     * Creates 10 students for Computer Science Semester 1 Section A
+     */
+    @PostMapping("/seed-students")
+    public ResponseEntity<ApiResponse<String>> seedStudents() {
+        try {
+            // Delete existing test students first
+            List<Student> existing = studentRepository.findByDepartmentAndSemesterAndSectionAndActiveTrue(
+                    "Computer Science", 1, "A");
+            if (!existing.isEmpty()) {
+                for (Student s : existing) {
+                    studentRepository.deleteById(s.getId());
+                }
+            }
+
+            String[] names = {
+                "Aarav Sharma", "Ananya Reddy", "Rohan Kumar", "Priya Singh", 
+                "Arjun Patel", "Meera Iyer", "Vikram Desai", "Kavya Nair", 
+                "Aditya Verma", "Ishita Kapoor"
+            };
+            
+            String[] rollNos = {
+                "CS-S1-A01", "CS-S1-A02", "CS-S1-A03", "CS-S1-A04", "CS-S1-A05",
+                "CS-S1-A06", "CS-S1-A07", "CS-S1-A08", "CS-S1-A09", "CS-S1-A10"
+            };
+            
+            int createdCount = 0;
+            for (int i = 0; i < names.length; i++) {
+                Student student = new Student();
+                student.setName(names[i]);
+                student.setRollNo(rollNos[i]);
+                student.setDepartment("Computer Science");
+                student.setSemester(1);
+                student.setSection("A");
+                student.setEmail(rollNos[i].toLowerCase() + "@college.edu");
+                student.setPhone("98765432" + String.format("%02d", i));
+                student.setActive(true);
+                
+                studentRepository.save(student);
+                createdCount++;
+            }
+
+            String message = String.format("✅ Created %d test students for Computer Science Semester 1 Section A", createdCount);
+            System.out.println(message);
+            return ResponseEntity.ok(ApiResponse.success(message));
+
+        } catch (Exception e) {
+            System.err.println("❌ Error seeding students: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.badRequest()
+                .body(ApiResponse.error("Error seeding students: " + e.getMessage()));
+        }
+    }
+
+    /**
      * POST /api/test/seed-attendance
      * Seeds sample attendance data for today
      * 
