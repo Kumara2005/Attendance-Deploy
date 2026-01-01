@@ -14,6 +14,8 @@ import com.attendance.model.Staff;
 import com.attendance.model.User;
 import com.attendance.repository.StaffRepository;
 import com.attendance.repository.UserRepository;
+import com.attendance.service.StaffService;
+import com.attendance.exception.ResourceNotFoundException;
 
 import jakarta.validation.Valid;
 
@@ -26,11 +28,13 @@ public class StaffController {
     private final StaffRepository staffRepo;
     private final UserRepository userRepo;
     private final PasswordEncoder passwordEncoder;
+    private final StaffService staffService;
 
-    public StaffController(StaffRepository staffRepo, UserRepository userRepo, PasswordEncoder passwordEncoder) {
+    public StaffController(StaffRepository staffRepo, UserRepository userRepo, PasswordEncoder passwordEncoder, StaffService staffService) {
         this.staffRepo = staffRepo;
         this.userRepo = userRepo;
         this.passwordEncoder = passwordEncoder;
+        this.staffService = staffService;
     }
 
     /**
@@ -154,11 +158,16 @@ public class StaffController {
      */
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {
-        if (!staffRepo.existsById(id)) {
-            return ResponseEntity.notFound().build();
+        try {
+            staffService.delete(id);
+            return ResponseEntity.ok(ApiResponse.<Void>success("Staff deleted successfully", null));
+        } catch (ResourceNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to delete staff: " + e.getMessage()));
         }
-        staffRepo.deleteById(id);
-        return ResponseEntity.ok(ApiResponse.<Void>success("Staff deleted successfully", null));
     }
 }
 
