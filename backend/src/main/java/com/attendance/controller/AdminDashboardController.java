@@ -16,6 +16,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * Admin Dashboard Controller
@@ -174,5 +175,33 @@ public class AdminDashboardController {
             logger.error("❌ Error during staff sync: " + e.getMessage(), e);
             return ResponseEntity.badRequest().body(ApiResponse.error("Sync failed: " + e.getMessage()));
         }
+    }
+
+    /**
+     * GET /api/admin/dashboard/maintenance/debug/staff/{staffId}
+     * Admin maintenance endpoint: Inspect timetable_session rows for a staff member
+     */
+    @GetMapping("/maintenance/debug/staff/{staffId}")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> debugStaffSessions(@PathVariable Long staffId) {
+        String sql = """
+            SELECT ts.id,
+                   ts.subject_id,
+                   ts.staff_id,
+                   ts.day_of_week,
+                   ts.start_time,
+                   ts.end_time,
+                   ts.department,
+                   ts.semester,
+                   ts.section,
+                   ts.active,
+                   sub.name AS subject_name
+            FROM timetable_session ts
+            LEFT JOIN subject sub ON ts.subject_id = sub.id
+            WHERE (ts.staff_id = ? OR ts.staff_id IS NULL)
+            ORDER BY FIELD(ts.day_of_week, 'Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'), ts.start_time
+            """;
+
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(sql, staffId);
+        return ResponseEntity.ok(ApiResponse.success(rows));
     }
 }
