@@ -31,7 +31,7 @@ import {
 import { UserRole, ClassOverview, Student, User } from '../types';
 import { getCurrentRole } from '../services/roles';
 import studentService from '../services/studentService';
-import staffDashboardService, { AssignedClassDTO } from '../services/staffDashboardService';
+import staffDashboardService, { AssignedClassDTO, TodaySessionDTO } from '../services/staffDashboardService';
 import { staffService } from '../services/staffService';
 import apiClient from '../services/api';
 
@@ -372,6 +372,8 @@ const StaffDashboard = ({ user }: { user: User }) => {
   const [students, setStudents] = useState<any[]>([]);
   const [loadingStudents, setLoadingStudents] = useState(false);
   const [filter, setFilter] = useState<'All' | 'Present' | 'Absent'>('All');
+  const [todaySessions, setTodaySessions] = useState<TodaySessionDTO[]>([]);
+  const [loadingSessions, setLoadingSessions] = useState(false);
 
   // Fetch assigned classes on mount
   useEffect(() => {
@@ -396,6 +398,25 @@ const StaffDashboard = ({ user }: { user: User }) => {
     };
 
     fetchAssignedClasses();
+  }, []);
+
+  // Fetch today's timetable sessions for the logged-in staff
+  useEffect(() => {
+    const fetchSessions = async () => {
+      try {
+        setLoadingSessions(true);
+        const sessions = await staffDashboardService.getTodaySessions();
+        console.log('⏰ Today sessions for staff:', sessions);
+        setTodaySessions(sessions);
+      } catch (error) {
+        console.error('❌ Error fetching today sessions:', error);
+        setTodaySessions([]);
+      } finally {
+        setLoadingSessions(false);
+      }
+    };
+
+    fetchSessions();
   }, []);
 
   // Fetch students when a class is selected
@@ -462,6 +483,42 @@ const StaffDashboard = ({ user }: { user: User }) => {
 
   return (
     <div className="space-y-12 animate-in fade-in duration-700">
+      {/* Today's Timetable */}
+      <div className="bg-white border border-slate-100 rounded-[3rem] p-8 card-shadow">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Today's Timetable</p>
+            <h3 className="text-3xl font-black text-slate-900 tracking-tighter">Sessions for {user?.name || 'you'}</h3>
+          </div>
+          <div className="text-sm font-bold text-slate-500">{new Date().toLocaleDateString()}</div>
+        </div>
+
+        {loadingSessions ? (
+          <div className="text-slate-400 font-medium">Loading sessions...</div>
+        ) : todaySessions.length === 0 ? (
+          <div className="text-slate-400 font-medium">No sessions scheduled today.</div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {todaySessions.map((session, idx) => (
+              <div key={idx} className="border border-slate-100 rounded-2xl p-5 bg-slate-50">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-[11px] font-black text-indigo-600 uppercase tracking-widest">{session.className}</span>
+                  <span className="text-xs font-bold text-slate-500">{session.location || 'Room TBD'}</span>
+                </div>
+                <div className="text-2xl font-black text-slate-900 leading-tight">{session.subject}</div>
+                <div className="mt-3 text-sm font-bold text-slate-600 flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-indigo-500" />
+                  {session.startTime} - {session.endTime}
+                </div>
+                <div className="mt-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  {session.attendanceMarked ? 'Attendance marked' : 'Attendance pending'}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* Class Selection Tabs */}
       {isLoadingClasses ? (
         <div className="text-center py-8">
