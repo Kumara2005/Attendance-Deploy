@@ -65,3 +65,4 @@ public interface SessionAttendanceRepository extends JpaRepository<SessionAttend
 	        Long subjectId, LocalDate date, LocalTime sessionTime);
 
 }
+

@@ -10,7 +10,8 @@ import {
   LogOut,
   GraduationCap,
   ShieldAlert,
-  BookMarked
+  BookMarked,
+  Zap
 } from 'lucide-react';
 import { User, UserRole } from '../types';
 
@@ -68,6 +69,12 @@ const Sidebar: React.FC<SidebarProps> = ({ user, logout }) => {
       name: 'Settings', 
       icon: Settings, 
       path: '/settings', 
+      roles: [UserRole.ADMIN] 
+    },
+    { 
+      name: 'Test Data Setup', 
+      icon: Zap, 
+      path: '/test-data', 
       roles: [UserRole.ADMIN] 
     },
   ];

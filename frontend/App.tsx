@@ -9,6 +9,7 @@ import Reports from './pages/Reports';
 import AdminSettings from './pages/AdminSettings';
 import TimetableManagement from './pages/TimetableManagement';
 import StudentPortal from './pages/StudentPortal';
+import TestDataSetup from './pages/TestDataSetup';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import { User, UserRole } from './types';
@@ -145,6 +146,7 @@ const AppContent: React.FC = () => {
             <Route path="/staff/timetable" element={<StaffTimetable />} />
             <Route path="/reports" element={<Reports />} />
             <Route path="/settings" element={<AdminSettings />} />
+            <Route path="/test-data" element={<TestDataSetup />} />
             <Route path="/" element={<Navigate to={user ? "/dashboard" : "/login"} replace />} />
           </Routes>
         </main>
