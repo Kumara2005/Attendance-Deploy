@@ -149,18 +149,26 @@ public class StaffDashboardDTO {
         private String className;
         private String location;
         private Boolean attendanceMarked;
+        private Long sessionId;
+        private String department;
+        private Integer semester;
+        private String section;
         
         // Constructors
         public TodaySessionDTO() {}
         
         public TodaySessionDTO(String startTime, String endTime, String subject, String className, 
-                              String location, Boolean attendanceMarked) {
+                              String location, Boolean attendanceMarked, Long sessionId, String department, Integer semester, String section) {
             this.startTime = startTime;
             this.endTime = endTime;
             this.subject = subject;
             this.className = className;
             this.location = location;
             this.attendanceMarked = attendanceMarked;
+            this.sessionId = sessionId;
+            this.department = department;
+            this.semester = semester;
+            this.section = section;
         }
         
         // Getters and Setters
@@ -181,5 +189,17 @@ public class StaffDashboardDTO {
         
         public Boolean getAttendanceMarked() { return attendanceMarked; }
         public void setAttendanceMarked(Boolean attendanceMarked) { this.attendanceMarked = attendanceMarked; }
+
+        public Long getSessionId() { return sessionId; }
+        public void setSessionId(Long sessionId) { this.sessionId = sessionId; }
+
+        public String getDepartment() { return department; }
+        public void setDepartment(String department) { this.department = department; }
+
+        public Integer getSemester() { return semester; }
+        public void setSemester(Integer semester) { this.semester = semester; }
+
+        public String getSection() { return section; }
+        public void setSection(String section) { this.section = section; }
     }
 }

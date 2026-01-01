@@ -10,7 +10,6 @@ import {
   LogOut,
   GraduationCap,
   ShieldAlert,
-  BookMarked,
   CalendarDays,
   Zap
 } from 'lucide-react';
@@ -52,12 +51,6 @@ const Sidebar: React.FC<SidebarProps> = ({ user, logout }) => {
       name: 'Attendance', 
       icon: CalendarCheck, 
       path: '/attendance', 
-      roles: [UserRole.STAFF]
-    },
-    { 
-      name: 'My Timetable', 
-      icon: BookMarked, 
-      path: '/staff/timetable', 
       roles: [UserRole.STAFF]
     },
     { 

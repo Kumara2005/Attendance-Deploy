@@ -4,7 +4,6 @@ import LoginPage from './pages/LoginPage';
 import DashboardRouter from './pages/DashboardRouter';
 import StudentManagement from './pages/StudentManagement';
 import AttendanceMarking from './pages/AttendanceMarking';
-import StaffTimetable from './pages/StaffTimetable';
 import Reports from './pages/Reports';
 import AdminSettings from './pages/AdminSettings';
 import TimetableManagement from './pages/TimetableManagement';
@@ -143,7 +142,6 @@ const AppContent: React.FC = () => {
             <Route path="/timetable" element={getTimetableComponent()} />
             <Route path="/students" element={<StudentManagement userRole={user?.role} />} />
             <Route path="/attendance" element={<AttendanceMarking />} />
-            <Route path="/staff/timetable" element={<StaffTimetable />} />
             <Route path="/admin/timetable" element={<TimetableManagement />} />
             <Route path="/reports" element={<Reports />} />
             <Route path="/settings" element={<AdminSettings />} />

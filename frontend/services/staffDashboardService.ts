@@ -20,12 +20,16 @@ export interface AssignedClassDTO {
 }
 
 export interface TodaySessionDTO {
+  sessionId: number;
   startTime: string;
   endTime: string;
   subject: string;
   className: string;
   location?: string;
   attendanceMarked: boolean;
+  department: string;
+  semester: number;
+  section: string;
 }
 
 export interface StaffDashboardDTO {

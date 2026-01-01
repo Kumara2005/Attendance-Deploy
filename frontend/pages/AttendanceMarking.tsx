@@ -1,223 +1,141 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
-import { useLocation } from 'react-router-dom';
-import { MOCK_STUDENTS } from '../constants';
-import { 
-  CheckCircle2, 
-  XCircle, 
-  Briefcase, 
-  Info, 
-  Save, 
-  RotateCcw, 
-  Calendar, 
-  ChevronRight,
-  BookOpen,
-  Clock,
-  Zap,
-  ChevronDown,
-  CalendarDays,
-  Users
-} from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Calendar, Clock, Users, MapPin, AlertCircle } from 'lucide-react';
 import { UserRole, User } from '../types';
-import apiClient from '../services/api';
+import { staffDashboardService, TodaySessionDTO } from '../services/staffDashboardService';
+import QuickAttendance from '../components/QuickAttendance';
 
-const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-
-/** 
- * INSTITUTIONAL TIMETABLE REPOSITORY
- * Strictly mapped by Department -> Year -> Day
- * Prevents cross-department curriculum leakage.
+/**
+ * Staff Attendance by Period
+ * Shows today's sessions for the logged-in staff member and enables per-period attendance marking.
  */
-const DEPARTMENT_SCHEDULES: Record<string, Record<string, Record<string, { subject: string, time: string }[]>>> = {
-  'B.Sc Computer Science': {
-    'Year 1': {
-      'Monday': [
-        { subject: 'Basics of Computer Science', time: '09:00 AM' },
-        { subject: 'Digital Electronics', time: '09:45 AM' },
-        { subject: 'Institutional Break', time: '12:00 PM' },
-        { subject: 'Mathematical Structures', time: '01:00 PM' },
-      ],
-      'Tuesday': [
-        { subject: 'Computer Organization', time: '09:00 AM' },
-        { subject: 'English Communication', time: '09:45 AM' },
-        { subject: 'Programming in C', time: '10:45 AM' },
-        { subject: 'Free Period', time: '01:00 PM' },
-      ],
-      'Wednesday': [
-        { subject: 'Programming in C (Lab)', time: '09:00 AM' },
-        { subject: 'Mathematical Structures', time: '10:45 AM' },
-        { subject: 'Basics of Computer Science', time: '11:30 AM' },
-        { subject: 'Soft Skills', time: '01:00 PM' },
-      ],
-      'Thursday': [
-        { subject: 'Digital Electronics', time: '09:00 AM' },
-        { subject: 'Free Period', time: '09:45 AM' },
-        { subject: 'English Communication', time: '11:30 AM' },
-        { subject: 'Computer Organization', time: '01:00 PM' },
-      ],
-      'Friday': [
-        { subject: 'Mathematical Structures', time: '09:00 AM' },
-        { subject: 'Programming in C', time: '09:45 AM' },
-        { subject: 'Basics of Computer Science', time: '10:45 AM' },
-        { subject: 'Digital Electronics (Lab)', time: '01:00 PM' },
-      ],
-      'Saturday': [
-        { subject: 'Remedial Session', time: '09:30 AM' },
-        { subject: 'Tech Seminar', time: '11:00 AM' },
-      ],
-    },
-    'Year 2': {
-      'Monday': [
-        { subject: 'Data Structures', time: '09:00 AM' },
-        { subject: 'Operating Systems', time: '09:45 AM' },
-        { subject: 'Institutional Break', time: '12:00 PM' },
-        { subject: 'Java Programming', time: '01:00 PM' },
-      ],
-      'Tuesday': [
-        { subject: 'Database Management', time: '09:00 AM' },
-        { subject: 'Computer Networks', time: '10:45 AM' },
-        { subject: 'Software Engineering', time: '01:00 PM' },
-      ],
-      'Wednesday': [
-        { subject: 'Data Structures (Lab)', time: '09:00 AM' },
-        { subject: 'Java Programming', time: '11:30 AM' },
-        { subject: 'Operating Systems', time: '01:00 PM' },
-      ],
-      'Thursday': [
-        { subject: 'Computer Networks', time: '09:00 AM' },
-        { subject: 'DBMS (Lab)', time: '10:45 AM' },
-        { subject: 'Data Structures', time: '01:00 PM' },
-      ],
-      'Friday': [
-        { subject: 'Java (Lab)', time: '09:00 AM' },
-        { subject: 'Software Engineering', time: '11:30 AM' },
-        { subject: 'Database Management', time: '01:00 PM' },
-      ],
-      'Saturday': [
-        { subject: 'Project Lab', time: '09:30 AM' },
-        { subject: 'Placement Training', time: '11:00 AM' },
-      ],
-    },
-    'Year 3': {
-      'Monday': [
-        { subject: 'Python Programming', time: '09:00 AM' },
-        { subject: 'Artificial Intelligence', time: '09:45 AM' },
-        { subject: 'Cloud Computing', time: '01:00 PM' },
-      ],
-      'Tuesday': [
-        { subject: 'Mobile App Development', time: '09:00 AM' },
-        { subject: 'Cyber Security', time: '10:45 AM' },
-        { subject: 'Final Project', time: '01:00 PM' },
-      ],
-      'Wednesday': [
-        { subject: 'Machine Learning', time: '09:00 AM' },
-        { subject: 'Python (Lab)', time: '10:45 AM' },
-        { subject: 'Artificial Intelligence', time: '01:00 PM' },
-      ],
-      'Thursday': [
-        { subject: 'Cloud Computing', time: '09:00 AM' },
-        { subject: 'Mobile App (Lab)', time: '10:45 AM' },
-        { subject: 'Cyber Security', time: '01:00 PM' },
-      ],
-      'Friday': [
-        { subject: 'Advanced Web Tech', time: '09:00 AM' },
-        { subject: 'Final Project Lab', time: '11:30 AM' },
-        { subject: 'AI Ethics', time: '01:00 PM' },
-      ],
-      'Saturday': [
-        { subject: 'Industry Seminar', time: '09:30 AM' },
-        { subject: 'Viva Voce Prep', time: '11:00 AM' },
-      ],
-    }
-  },
-  'Arts': {
-    'Year 1': {
-      'Monday': [
-        { subject: 'Political Science', time: '09:00 AM' },
-        { subject: 'Psychology', time: '09:45 AM' },
-        { subject: 'Sociology', time: '10:45 AM' },
-        { subject: 'English Literature', time: '11:30 AM' },
-        { subject: 'Institutional Break', time: '12:00 PM' },
-        { subject: 'Economics', time: '01:00 PM' },
-      ],
-      'Tuesday': [
-        { subject: 'English Literature', time: '09:00 AM' },
-        { subject: 'Fine Arts', time: '09:45 AM' },
-        { subject: 'Journalism', time: '10:45 AM' },
-        { subject: 'Free Period', time: '11:30 AM' },
-        { subject: 'Philosophy', time: '01:00 PM' },
-      ],
-      'Wednesday': [
-        { subject: 'Economics', time: '09:00 AM' },
-        { subject: 'Public Administration', time: '09:45 AM' },
-        { subject: 'English Literature', time: '10:45 AM' },
-        { subject: 'Psychology', time: '11:30 AM' },
-        { subject: 'Art History', time: '01:00 PM' },
-      ],
-      'Thursday': [
-        { subject: 'Sociology', time: '09:00 AM' },
-        { subject: 'Philosophy', time: '09:45 AM' },
-        { subject: 'Free Period', time: '10:45 AM' },
-        { subject: 'Political Science', time: '11:30 AM' },
-        { subject: 'Fine Arts', time: '01:00 PM' },
-      ],
-      'Friday': [
-        { subject: 'Journalism', time: '09:00 AM' },
-        { subject: 'English Literature', time: '09:45 AM' },
-        { subject: 'Public Administration', time: '10:45 AM' },
-        { subject: 'Economics', time: '11:30 AM' },
-        { subject: 'Psychology', time: '01:00 PM' },
-      ],
-      'Saturday': [
-        { subject: 'Seminar Session', time: '09:30 AM' },
-        { subject: 'Sociology Workshop', time: '11:00 AM' },
-      ],
-    }
-  },
-  'Science': {
-    'Year 2': {
-      'Monday': [
-        { subject: 'Advanced Physics', time: '09:00 AM' },
-        { subject: 'Organic Chemistry', time: '10:45 AM' },
-        { subject: 'Pure Mathematics', time: '01:00 PM' },
-      ],
-    }
-  },
-  'Default': {
-    'Global': {
-      'Monday': [
-        { subject: 'General Assembly', time: '09:00 AM' },
-        { subject: 'Institutional Studies', time: '10:00 AM' },
-      ],
-    }
-  }
+const AttendanceMarking: React.FC = () => {
+  const role = (window as any).currentUserRole || UserRole.STAFF;
+  const user = (window as any).currentUser as User;
+
+  const [sessions, setSessions] = useState<TodaySessionDTO[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [selectedSession, setSelectedSession] = useState<TodaySessionDTO | null>(null);
+
+  useEffect(() => {
+    const fetchSessions = async () => {
+      setLoading(true);
+      try {
+        const data = await staffDashboardService.getTodaySessions();
+        setSessions(data || []);
+      } catch (error) {
+        console.error('Error fetching today sessions for staff:', error);
+        setSessions([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSessions();
+  }, []);
+
+  const sessionsByTime = useMemo(() => {
+    return [...sessions].sort((a, b) => a.startTime.localeCompare(b.startTime));
+  }, [sessions]);
+
+  const today = new Date().toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'short',
+    day: 'numeric',
+  });
+
+  const handleSessionClick = (session: TodaySessionDTO) => {
+    setSelectedSession(session);
+  };
+
+  return (
+    <div className="space-y-8 max-w-6xl mx-auto">
+      <header className="bg-white rounded-[2.5rem] p-8 border border-slate-100 shadow-sm flex flex-col gap-3">
+        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Attendance · Per Period</p>
+        <h1 className="text-4xl md:text-5xl font-black text-slate-900 leading-tight">Today's Sessions</h1>
+        <div className="flex items-center gap-3 text-sm font-bold text-slate-500">
+          <Calendar className="w-4 h-4 text-indigo-500" />
+          <span>{today}</span>
+          <span className="text-slate-300">•</span>
+          <span>{user?.name}</span>
+        </div>
+      </header>
+
+      <section className="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-sm">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Scheduled Periods</p>
+            <h3 className="text-2xl font-black text-slate-900">Tap a period to mark attendance</h3>
+          </div>
+          <div className="text-xs font-bold text-slate-500">Auto-filtered to your timetable</div>
+        </div>
+
+        {loading ? (
+          <div className="flex items-center gap-3 text-slate-500 font-bold">
+            <div className="w-6 h-6 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+            Loading sessions...
+          </div>
+        ) : sessionsByTime.length === 0 ? (
+          <div className="flex flex-col items-center gap-3 py-10 text-slate-400">
+            <AlertCircle className="w-10 h-10" />
+            <p className="font-bold">No sessions scheduled for today.</p>
+            <p className="text-sm font-medium text-slate-400">Once the admin assigns timetable periods to you, they'll appear here.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {sessionsByTime.map((session) => (
+              <button
+                key={session.sessionId}
+                onClick={() => handleSessionClick(session)}
+                className="text-left p-5 rounded-2xl border border-slate-100 bg-gradient-to-br from-white to-slate-50 hover:from-indigo-50 hover:border-indigo-200 transition-all shadow-sm hover:shadow-md"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[11px] font-black uppercase tracking-[0.2em] text-indigo-600">{session.className}</span>
+                  <span className={`text-[10px] font-black uppercase tracking-[0.2em] ${session.attendanceMarked ? 'text-emerald-600' : 'text-amber-600'}`}>
+                    {session.attendanceMarked ? 'Attendance Marked' : 'Pending'}
+                  </span>
+                </div>
+                <div className="text-2xl font-black text-slate-900 leading-tight">{session.subject}</div>
+                <div className="mt-3 flex items-center gap-4 text-sm font-bold text-slate-600">
+                  <span className="flex items-center gap-1">
+                    <Clock className="w-4 h-4 text-indigo-500" /> {session.startTime} – {session.endTime}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Users className="w-4 h-4 text-indigo-500" /> {session.section || 'Section'}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <MapPin className="w-4 h-4 text-indigo-500" /> {session.location || 'Room TBD'}
+                  </span>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {selectedSession && (
+        <QuickAttendance
+          sessionId={selectedSession.sessionId}
+          sessionTime={`${selectedSession.startTime} - ${selectedSession.endTime}`}
+          subjectName={selectedSession.subject}
+          department={selectedSession.department}
+          semester={selectedSession.semester}
+          section={selectedSession.section}
+          onClose={() => setSelectedSession(null)}
+          onSaved={() => {
+            setSessions((prev) =>
+              prev.map((s) =>
+                s.sessionId === selectedSession.sessionId ? { ...s, attendanceMarked: true } : s
+              )
+            );
+          }}
+        />
+      )}
+    </div>
+  );
 };
 
-const AttendanceMarking: React.FC = () => {
-  const location = useLocation();
-  const role = (window as any).currentUserRole || UserRole.ADMIN;
-  const currentUser = (window as any).currentUser as User;
-  const isStudent = role === UserRole.STUDENT;
-
-  // Check if navigated from timetable with pre-filled data
-  const navigationState = location.state as any;
-  const fromTimetable = navigationState?.fromTimetable || false;
-
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
-  
-  // Cascading dropdown states - Initialize from navigation if available
-  const [selectedYear, setSelectedYear] = useState<string>(
-    fromTimetable && navigationState?.year ? String(navigationState.year) : ''
-  );
-  const [selectedClass, setSelectedClass] = useState<string>(
-    fromTimetable && navigationState?.section ? navigationState.section : ''
-  );
-  const [selectedSemester, setSelectedSemester] = useState<string>(
-    fromTimetable && navigationState?.semester ? String(navigationState.semester) : ''
-  );
-  
-  // Available options for dropdowns
-  const [availableYears, setAvailableYears] = useState<number[]>([]);
+export default AttendanceMarking;
   const [availableClasses, setAvailableClasses] = useState<string[]>([]);
   const [availableSemesters] = useState<number[]>([1, 2, 3, 4, 5, 6]);
   

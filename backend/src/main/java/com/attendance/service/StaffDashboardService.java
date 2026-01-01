@@ -139,7 +139,11 @@ public class StaffDashboardService {
                     session.getSubjectName(),
                     String.format("%s %s", session.getYear(), session.getClassName()),
                     session.getLocation(),
-                    attendanceMarked
+                    attendanceMarked,
+                    session.getId(),
+                    session.getDepartment(),
+                    session.getSemester(),
+                    session.getSection()
                 );
             })
             .toArray(TodaySessionDTO[]::new);
