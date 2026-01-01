@@ -381,11 +381,12 @@ const AttendanceMarking: React.FC = () => {
     setSaving(true);
     
     try {
-      // Get the current timetable session (we need this to know which session we're marking)
-      // For now, we'll need to get the session ID from the navigation state or find it from timetable
+      // Get or find the TimetableSession ID from context
+      // For now, we'll use a simplified approach - just send student ID and status
+      // The backend service will handle finding/creating the session
       
-      // Create attendance records for each student
-      const attendanceRecords = students.map(student => {
+      // Collect attendance records for submission
+      const attendanceSubmissions = students.map(student => {
         const status = attendance[student.id] || 'Present';
         // Map frontend status to backend enum
         const backendStatus = status === 'Late' ? 'PRESENT' : status.toUpperCase();
@@ -395,33 +396,40 @@ const AttendanceMarking: React.FC = () => {
             id: student.id,
             name: student.name,
             rollNo: student.rollNo || student.rollNumber,
-            department: student.department,
-            semester: student.semester || selectedSemester,
-            section: student.section || selectedClass,
+            department: student.department || currentUser?.department,
+            semester: parseInt(selectedSemester) || student.semester,
+            section: selectedClass || student.section,
             active: true
           },
           timetableSession: {
-            id: navigationState?.sessionId || 0, // Will be provided by timetable click
-            subjectName: navigationState?.subjectName || currentUser?.subject,
-            department: currentUser?.department,
-            year: selectedYear,
-            semester: selectedSemester,
-            section: selectedClass
+            id: navigationState?.sessionId || 0,
+            subjectName: navigationState?.subjectName || currentUser?.subject || 'Unknown Subject',
+            department: currentUser?.department || 'Unknown',
+            semester: parseInt(selectedSemester) || 1,
+            section: selectedClass || 'A',
+            dayOfWeek: 'Monday',
+            startTime: '09:00:00',
+            endTime: '10:00:00',
+            active: true
           },
           date: selectedDate,
           status: backendStatus
         };
       });
       
-      console.log('📤 Submitting attendance records:', attendanceRecords);
+      console.log('📤 Submitting attendance records:', JSON.stringify(attendanceSubmissions, null, 2));
       
       // Submit each attendance record to the backend
-      for (const record of attendanceRecords) {
+      let successCount = 0;
+      for (const record of attendanceSubmissions) {
         try {
+          console.log('📡 Posting record:', record);
           const response = await apiClient.post('/attendance/session', record);
           console.log('✅ Attendance saved for', record.student.name, ':', response.data);
+          successCount++;
         } catch (error: any) {
-          console.error('❌ Error saving attendance for', record.student.name, ':', error);
+          console.error('❌ Error saving attendance for', record.student.name);
+          console.error('Error details:', error.response?.data || error.message);
           // Continue saving other records even if one fails
         }
       }
@@ -433,7 +441,7 @@ const AttendanceMarking: React.FC = () => {
       localStorage.setItem('attendx_session_attendance', JSON.stringify(attendance));
       
       setSaving(false);
-      alert(`✅ Attendance for ${currentUser?.subject || 'Class'} on ${new Date(selectedDate).toLocaleDateString()} has been successfully committed to the database.`);
+      alert(`✅ Attendance committed: ${successCount}/${students.length} records saved to database for ${currentUser?.subject || 'Class'} on ${new Date(selectedDate).toLocaleDateString()}`);
     } catch (error: any) {
       console.error('❌ Error in handleSave:', error);
       setSaving(false);
