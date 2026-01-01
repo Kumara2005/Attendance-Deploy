@@ -32,6 +32,7 @@ import { UserRole, ClassOverview, Student, User } from '../types';
 import { getCurrentRole } from '../services/roles';
 import studentService from '../services/studentService';
 import staffDashboardService, { AssignedClassDTO } from '../services/staffDashboardService';
+import { staffService } from '../services/staffService';
 import apiClient from '../services/api';
 
 const Dashboard: React.FC = () => {
@@ -167,6 +168,7 @@ const AdminDashboard = () => {
   const [programmeFilter, setProgrammeFilter] = useState('All Programmes');
   const [programmes, setProgrammes] = useState<any[]>([]);
   const [totalStudents, setTotalStudents] = useState<number>(0); // NEW: Track total student count
+  const [totalStaff, setTotalStaff] = useState<number>(0); // NEW: Track total staff count
   const [loading, setLoading] = useState(true);
 
   // ✨ Fetch programmes AND classes, merge them for display
@@ -198,6 +200,15 @@ const AdminDashboard = () => {
           // Set total student count (ACTIVE students only)
           setTotalStudents(studentsData.length);
           console.log(`✅ Total students in database: ${studentsData.length}`);
+          
+          // Fetch all staff to count faculty roster
+          try {
+            const staffData = await staffService.getAll();
+            setTotalStaff(staffData.length);
+            console.log(`✅ Total staff in database: ${staffData.length}`);
+          } catch (staffError) {
+            console.error('Error fetching staff:', staffError);
+          }
           
           // Convert classes to programme format with real student counts
           const classProgrammes = classesData.map((c: any) => {
@@ -324,7 +335,7 @@ const AdminDashboard = () => {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <QuickStat label="Total Enrollment" value={totalStudents.toString()} sub="Students" icon={Users} color="indigo" />
-            <QuickStat label="Faculty Roster" value={MOCK_STAFF.length.toString()} sub="Professors" icon={Award} color="violet" />
+            <QuickStat label="Faculty Roster" value={totalStaff.toString()} sub="Professors" icon={Award} color="violet" />
             <QuickStat label="Active Streams" value="12" sub="Departments" icon={Activity} color="amber" />
           </div>
         </div>
