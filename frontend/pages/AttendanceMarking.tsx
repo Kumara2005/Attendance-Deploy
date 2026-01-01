@@ -381,39 +381,22 @@ const AttendanceMarking: React.FC = () => {
     setSaving(true);
     
     try {
-      // Get or find the TimetableSession ID from context
-      // For now, we'll use a simplified approach - just send student ID and status
-      // The backend service will handle finding/creating the session
-      
-      // Collect attendance records for submission
+      // Collect attendance records for submission using simplified DTO
       const attendanceSubmissions = students.map(student => {
         const status = attendance[student.id] || 'Present';
         // Map frontend status to backend enum
         const backendStatus = status === 'Late' ? 'PRESENT' : status.toUpperCase();
         
         return {
-          student: {
-            id: student.id,
-            name: student.name,
-            rollNo: student.rollNo || student.rollNumber,
-            department: student.department || currentUser?.department,
-            semester: parseInt(selectedSemester) || student.semester,
-            section: selectedClass || student.section,
-            active: true
-          },
-          timetableSession: {
-            id: navigationState?.sessionId || 0,
-            subjectName: navigationState?.subjectName || currentUser?.subject || 'Unknown Subject',
-            department: currentUser?.department || 'Unknown',
-            semester: parseInt(selectedSemester) || 1,
-            section: selectedClass || 'A',
-            dayOfWeek: 'Monday',
-            startTime: '09:00:00',
-            endTime: '10:00:00',
-            active: true
-          },
+          studentId: student.id,
+          timetableSessionId: navigationState?.sessionId || 0,
           date: selectedDate,
-          status: backendStatus
+          status: backendStatus,
+          // Metadata for backend to find or create TimetableSession
+          subjectName: navigationState?.subjectName || currentUser?.subject || 'Unknown Subject',
+          department: currentUser?.department || 'Unknown',
+          semester: parseInt(selectedSemester) || 1,
+          section: selectedClass || 'A'
         };
       });
       
@@ -423,12 +406,12 @@ const AttendanceMarking: React.FC = () => {
       let successCount = 0;
       for (const record of attendanceSubmissions) {
         try {
-          console.log('📡 Posting record:', record);
+          console.log('📡 Posting simplified DTO record:', record);
           const response = await apiClient.post('/attendance/session', record);
-          console.log('✅ Attendance saved for', record.student.name, ':', response.data);
+          console.log('✅ Attendance saved:', response.data);
           successCount++;
         } catch (error: any) {
-          console.error('❌ Error saving attendance for', record.student.name);
+          console.error('❌ Error saving attendance for student', record.studentId);
           console.error('Error details:', error.response?.data || error.message);
           // Continue saving other records even if one fails
         }
