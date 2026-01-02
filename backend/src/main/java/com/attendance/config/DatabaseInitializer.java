@@ -174,32 +174,33 @@ public class DatabaseInitializer implements CommandLineRunner {
                            staffName, staffId, subjectName, subjectId);
                 
                 try {
-                    // Count sessions that need assignment
-                    Integer nullCount = jdbcTemplate.queryForObject(
-                        "SELECT COUNT(*) FROM timetable_session WHERE subject_id = ? AND staff_id IS NULL AND active = true",
-                        Integer.class, subjectId
-                    );
-                    
+                    // Count total sessions for this subject
                     Integer totalCount = jdbcTemplate.queryForObject(
                         "SELECT COUNT(*) FROM timetable_session WHERE subject_id = ? AND active = true",
                         Integer.class, subjectId
                     );
                     
-                    logger.info("    📊 Subject {} has {} total sessions, {} without staff assignment", 
-                               subjectName, totalCount, nullCount);
+                    // Count sessions assigned to different staff
+                    Integer mismatchCount = jdbcTemplate.queryForObject(
+                        "SELECT COUNT(*) FROM timetable_session WHERE subject_id = ? AND (staff_id IS NULL OR staff_id != ?) AND active = true",
+                        Integer.class, subjectId, staffId
+                    );
                     
-                    // Update sessions
+                    logger.info("    📊 Subject {} has {} total sessions, {} need reassignment to {}", 
+                               subjectName, totalCount, mismatchCount, staffName);
+                    
+                    // Update ALL sessions for this subject to the correct staff based on staff_subjects mapping
                     int updated = jdbcTemplate.update(
-                        "UPDATE timetable_session SET staff_id = ? WHERE subject_id = ? AND staff_id IS NULL AND active = true",
+                        "UPDATE timetable_session SET staff_id = ? WHERE subject_id = ? AND active = true",
                         staffId, subjectId
                     );
                     
                     if (updated > 0) {
-                        logger.info("    ✅ Assigned {} to {} timetable session(s) for subject: {}", 
-                                    staffName, updated, subjectName);
+                        logger.info("    ✅ Reassigned {} session(s) to {} for subject: {}", 
+                                    updated, staffName, subjectName);
                         totalAssigned[0] += updated;
                     } else {
-                        logger.info("    ⏭️  No unassigned sessions found for subject: {}", subjectName);
+                        logger.info("    ⏭️  No sessions found for subject: {}", subjectName);
                     }
                 } catch (Exception e) {
                     logger.warn("    ⚠️  Could not assign {} to subject {}: {}", 
