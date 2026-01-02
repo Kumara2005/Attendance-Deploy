@@ -21,6 +21,7 @@ export interface AssignedClassDTO {
 
 export interface TodaySessionDTO {
   sessionId: number;
+  classId?: number;
   startTime: string;
   endTime: string;
   subject: string;

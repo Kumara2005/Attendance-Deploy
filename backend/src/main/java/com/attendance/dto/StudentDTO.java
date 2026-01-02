@@ -19,6 +19,7 @@ public class StudentDTO {
     @Min(value = 1, message = "Semester must be at least 1")
     private int semester;
     
+    private Long classId;
     private String email;
     private String phone;
     private String section;
@@ -104,6 +105,14 @@ public class StudentDTO {
 
     public void setSection(String section) {
         this.section = section;
+    }
+
+    public Long getClassId() {
+        return classId;
+    }
+
+    public void setClassId(Long classId) {
+        this.classId = classId;
     }
 
     public Double getAttendancePercentage() {

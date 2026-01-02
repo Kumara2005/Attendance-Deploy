@@ -33,6 +33,10 @@ public class Student {
 	private String section;
 
 	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "class_id")
+	private Classes classEntity;
+
+	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "user_id")
 	private User user;
 
@@ -131,6 +135,14 @@ public class Student {
 
 	public void setSection(String section) {
 		this.section = section;
+	}
+
+	public Classes getClassEntity() {
+		return classEntity;
+	}
+
+	public void setClassEntity(Classes classEntity) {
+		this.classEntity = classEntity;
 	}
 
 	public User getUser() {

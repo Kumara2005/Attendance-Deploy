@@ -151,6 +151,8 @@ public class StaffDashboardService {
                     // Check if attendance is marked for this session
                     Boolean attendanceMarked = checkAttendanceMarked(session, LocalDate.now());
                     
+                    Long classId = session.getClassEntity() != null ? session.getClassEntity().getId() : null;
+                    
                     return new TodaySessionDTO(
                         session.getStartTime().toString(),
                         session.getEndTime().toString(),
@@ -159,6 +161,7 @@ public class StaffDashboardService {
                         session.getLocation(),
                         attendanceMarked,
                         session.getId(),
+                        classId,
                         session.getDepartment(),
                         session.getSemester(),
                         session.getSection()

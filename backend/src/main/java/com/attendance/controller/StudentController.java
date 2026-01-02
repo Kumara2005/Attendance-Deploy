@@ -44,18 +44,24 @@ public class StudentController {
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
     public ResponseEntity<ApiResponse<List<StudentDTO>>> getAll(
+            @RequestParam(required = false) Long classId,
             @RequestParam(required = false) String department,
             @RequestParam(required = false) Integer semester,
             @RequestParam(required = false) String section) {
         
         System.out.println("🔍 StudentController.getAll() called with:");
+        System.out.println("   classId: " + classId);
         System.out.println("   department: " + department);
         System.out.println("   semester: " + semester);
         System.out.println("   section: " + section);
         
         List<StudentDTO> students;
-        if (department != null && semester != null && section != null) {
-            System.out.println("   → Fetching filtered students...");
+        if (classId != null) {
+            System.out.println("   → Fetching students by classId...");
+            students = service.getByClassId(classId);
+            System.out.println("   → Found " + students.size() + " students");
+        } else if (department != null && semester != null && section != null) {
+            System.out.println("   → Fetching filtered students by department+semester+section...");
             students = service.getByDepartmentSemesterSection(department, semester, section);
             System.out.println("   → Found " + students.size() + " students");
         } else {

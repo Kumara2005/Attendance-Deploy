@@ -14,6 +14,7 @@ interface QuickAttendanceProps {
   sessionId: number;
   sessionTime: string;
   subjectName: string;
+  classId?: number;
   department: string;
   semester: number;
   section: string;
@@ -25,6 +26,7 @@ export const QuickAttendance: React.FC<QuickAttendanceProps> = ({
   sessionId,
   sessionTime,
   subjectName,
+  classId,
   department,
   semester,
   section,
@@ -41,9 +43,16 @@ export const QuickAttendance: React.FC<QuickAttendanceProps> = ({
     const fetchStudents = async () => {
       setLoading(true);
       try {
-        const response = await apiClient.get(
-          `/students?department=${encodeURIComponent(department)}&semester=${semester}&section=${section}`
-        );
+        let url: string;
+        if (classId) {
+          // Use classId if available (PREFERRED)
+          url = `/students?classId=${classId}`;
+        } else {
+          // Fallback to department+semester+section
+          url = `/students?department=${encodeURIComponent(department)}&semester=${semester}&section=${section}`;
+        }
+        
+        const response = await apiClient.get(url);
         const studentList: AttendanceRecord[] = response.data.data || [];
         setStudents(studentList);
 
@@ -61,7 +70,7 @@ export const QuickAttendance: React.FC<QuickAttendanceProps> = ({
     };
 
     fetchStudents();
-  }, [department, semester, section]);
+  }, [classId, department, semester, section]);
 
   const handleStatusChange = (studentId: number, status: 'PRESENT' | 'ABSENT' | 'OD') => {
     setSelectedStatuses((prev) => ({

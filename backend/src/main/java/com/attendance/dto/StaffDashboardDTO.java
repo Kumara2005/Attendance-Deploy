@@ -150,6 +150,7 @@ public class StaffDashboardDTO {
         private String location;
         private Boolean attendanceMarked;
         private Long sessionId;
+        private Long classId;
         private String department;
         private Integer semester;
         private String section;
@@ -166,6 +167,21 @@ public class StaffDashboardDTO {
             this.location = location;
             this.attendanceMarked = attendanceMarked;
             this.sessionId = sessionId;
+            this.department = department;
+            this.semester = semester;
+            this.section = section;
+        }
+
+        public TodaySessionDTO(String startTime, String endTime, String subject, String className, 
+                              String location, Boolean attendanceMarked, Long sessionId, Long classId, String department, Integer semester, String section) {
+            this.startTime = startTime;
+            this.endTime = endTime;
+            this.subject = subject;
+            this.className = className;
+            this.location = location;
+            this.attendanceMarked = attendanceMarked;
+            this.sessionId = sessionId;
+            this.classId = classId;
             this.department = department;
             this.semester = semester;
             this.section = section;
@@ -192,6 +208,9 @@ public class StaffDashboardDTO {
 
         public Long getSessionId() { return sessionId; }
         public void setSessionId(Long sessionId) { this.sessionId = sessionId; }
+
+        public Long getClassId() { return classId; }
+        public void setClassId(Long classId) { this.classId = classId; }
 
         public String getDepartment() { return department; }
         public void setDepartment(String department) { this.department = department; }

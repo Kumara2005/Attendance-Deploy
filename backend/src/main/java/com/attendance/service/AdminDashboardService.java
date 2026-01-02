@@ -57,21 +57,23 @@ public class AdminDashboardService {
     /**
      * Get all programmes for Curriculum Registry
      * Groups students and faculty by department
+     * FIXED: Now reads from classes table with JOIN to students
      */
     public List<ProgrammeDTO> getAllProgrammes() {
-        // Get all unique departments from students
-        List<Object[]> departmentData = studentRepository.findDepartmentStatistics();
+        // Get all departments from classes table with student counts via JOIN
+        List<Object[]> departmentData = classRepository.findDepartmentStatisticsFromClasses();
         
         return departmentData.stream()
             .map(row -> {
                 String department = (String) row[0];
-                Long studentCount = (Long) row[1];
+                Long classCount = (Long) row[1];
+                Long studentCount = (Long) row[2];
                 
                 // Get faculty count for this department
                 Long facultyCount = staffRepository.countByDepartment(department);
                 
-                // Get distinct years for this department
-                List<String> years = studentRepository.findDistinctYearsByDepartment(department);
+                // Get distinct years for this department from classes table
+                List<String> years = classRepository.findDistinctYearsStringByDepartment(department);
                 
                 // Calculate average attendance for this department
                 Double avgAttendance = calculateDepartmentAttendance(department);

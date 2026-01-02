@@ -57,4 +57,21 @@ public interface ClassRepository extends JpaRepository<Classes, Long> {
     );
 
     Long countByActiveTrue();
+    
+    /**
+     * Get department statistics with student counts from classes table
+     * Returns: department, total active classes, total students
+     */
+    @Query("SELECT c.department, COUNT(DISTINCT c.id), COUNT(s.id) " +
+           "FROM Classes c LEFT JOIN Student s ON c.id = s.classEntity.id AND s.active = true " +
+           "WHERE c.active = true " +
+           "GROUP BY c.department")
+    List<Object[]> findDepartmentStatisticsFromClasses();
+    
+    /**
+     * Get distinct years for a specific department from classes table
+     */
+    @Query("SELECT DISTINCT CONCAT('Year ', c.year) FROM Classes c " +
+           "WHERE c.department = :department AND c.active = true ORDER BY c.year")
+    List<String> findDistinctYearsStringByDepartment(@Param("department") String department);
 }

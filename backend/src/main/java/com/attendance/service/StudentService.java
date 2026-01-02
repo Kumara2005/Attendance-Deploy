@@ -9,8 +9,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.attendance.dto.StudentDTO;
 import com.attendance.exception.ResourceNotFoundException;
+import com.attendance.model.Classes;
 import com.attendance.model.Student;
 import com.attendance.model.User;
+import com.attendance.repository.ClassRepository;
 import com.attendance.repository.StudentRepository;
 import com.attendance.repository.UserRepository;
 
@@ -20,11 +22,14 @@ public class StudentService {
 
 	private final StudentRepository repo;
 	private final UserRepository userRepository;
+	private final ClassRepository classRepository;
 	private final PasswordEncoder passwordEncoder;
 
-	public StudentService(StudentRepository repo, UserRepository userRepository, PasswordEncoder passwordEncoder) {
+	public StudentService(StudentRepository repo, UserRepository userRepository, 
+	                     ClassRepository classRepository, PasswordEncoder passwordEncoder) {
 		this.repo = repo;
 		this.userRepository = userRepository;
+		this.classRepository = classRepository;
 		this.passwordEncoder = passwordEncoder;
 	}
 
@@ -93,6 +98,22 @@ public class StudentService {
 				.collect(Collectors.toList());
 	}
 
+	public List<StudentDTO> getByClassId(Long classId) {
+		System.out.println("   🔎 StudentService.getByClassId() executing:");
+		System.out.println("      Query: classId=" + classId + ", active=true");
+		
+		List<Student> results = repo.findByClassEntityIdAndActiveTrue(classId);
+		
+		System.out.println("      Result: " + results.size() + " students found");
+		if (!results.isEmpty()) {
+			System.out.println("      Sample: " + results.get(0).getName() + " (ClassId: " + classId + ")");
+		}
+		
+		return results.stream()
+				.map(this::toDTO)
+				.collect(Collectors.toList());
+	}
+
 	public StudentDTO getById(Long id) {
 		Student student = repo.findById(id)
 				.orElseThrow(() -> new ResourceNotFoundException("Student", "id", id));
@@ -138,6 +159,7 @@ public class StudentService {
 		dto.setEmail(student.getEmail());
 		dto.setPhone(student.getPhone());
 		dto.setSection(student.getSection());
+		dto.setClassId(student.getClassEntity() != null ? student.getClassEntity().getId() : null);
 		return dto;
 	}
 
@@ -151,6 +173,14 @@ public class StudentService {
 		student.setEmail(dto.getEmail());
 		student.setPhone(dto.getPhone());
 		student.setSection(dto.getSection());
+		
+		// Set class entity if classId is provided
+		if (dto.getClassId() != null) {
+			Classes classEntity = classRepository.findById(dto.getClassId())
+				.orElseThrow(() -> new ResourceNotFoundException("Class", "id", dto.getClassId()));
+			student.setClassEntity(classEntity);
+		}
+		
 		return student;
 	}
 }

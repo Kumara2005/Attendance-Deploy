@@ -28,6 +28,11 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
     
     List<Student> findByDepartmentAndSemester(String department, int semester);
     
+    // Find students by class ID (using class entity FK)
+    List<Student> findByClassEntityIdAndActiveTrue(Long classId);
+    
+    List<Student> findByClassEntityId(Long classId);
+    
     /**
      * Fetch students by department, semester, section and active status
      * Using native SQL to ensure proper boolean handling

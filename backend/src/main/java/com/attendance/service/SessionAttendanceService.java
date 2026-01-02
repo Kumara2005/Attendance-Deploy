@@ -31,39 +31,30 @@ public class SessionAttendanceService {
 
     /**
      * Mark attendance using simplified DTO
-     * This method handles finding/creating TimetableSession if needed
+     * FIXED: Now requires timetableSessionId - NO AUTO-CREATION
      */
     public SessionAttendance markAttendance(AttendanceSubmissionDTO dto) {
         System.out.println("📝 Processing attendance submission: " + dto);
         
+        if (dto.getTimetableSessionId() == null || dto.getTimetableSessionId() <= 0) {
+            throw new RuntimeException("timetableSessionId is required and must be > 0");
+        }
+        
         LocalDate today = LocalDate.now();
         
-        // Find or create Student
+        // Find Student from DB
         Student student = studentRepository.findById(dto.getStudentId())
             .orElseThrow(() -> new RuntimeException("Student not found with ID: " + dto.getStudentId()));
         
         System.out.println("✅ Found student: " + student.getName());
         
-        // Find or create TimetableSession
-        TimetableSession session;
-        if (dto.getTimetableSessionId() != null && dto.getTimetableSessionId() > 0) {
-            // Try to find existing session by ID
-            session = timetableSessionRepository.findById(dto.getTimetableSessionId())
-                .orElse(null);
-            
-            if (session == null) {
-                System.out.println("⚠️  Session with ID " + dto.getTimetableSessionId() + " not found, creating new one");
-                session = createTimetableSession(dto);
-            }
-        } else {
-            // Session ID is 0 or null, find or create one based on metadata
-            System.out.println("🔍 Searching for existing session with subject: " + dto.getSubjectName());
-            session = findOrCreateTimetableSession(dto);
-        }
+        // Find TimetableSession from DB (REQUIRED - no auto-creation)
+        TimetableSession session = timetableSessionRepository.findById(dto.getTimetableSessionId())
+            .orElseThrow(() -> new RuntimeException("TimetableSession not found with ID: " + dto.getTimetableSessionId()));
         
         System.out.println("✅ Using session ID: " + session.getId());
         
-        // Check if attendance already exists for today
+        // Check if attendance already exists for this session on this date
         Optional<SessionAttendance> existing =
             repo.findByStudentIdAndTimetableSessionIdAndDate(
                 student.getId(),
@@ -91,66 +82,19 @@ public class SessionAttendanceService {
         return saved;
     }
 
-    /**
-     * Find existing TimetableSession or create a new one
-     */
-    private TimetableSession findOrCreateTimetableSession(AttendanceSubmissionDTO dto) {
-        // Search for existing session by department, semester, section, and subject name
-        java.util.List<TimetableSession> allSessions = timetableSessionRepository.findAll();
-        
-        String subjectName = dto.getSubjectName() != null ? dto.getSubjectName() : "Unknown";
-        String department = dto.getDepartment() != null ? dto.getDepartment() : "Unknown";
-        int semester = dto.getSemester() != null ? dto.getSemester() : 1;
-        String section = dto.getSection() != null ? dto.getSection() : "A";
-        
-        for (TimetableSession session : allSessions) {
-            if (session.getDepartment() != null && session.getDepartment().equals(department) &&
-                session.getSemester() == semester &&
-                (session.getSection() == null || session.getSection().equals(section))) {
-                
-                String sessionSubject = session.getSubjectName();
-                if (sessionSubject != null && sessionSubject.equals(subjectName)) {
-                    System.out.println("✅ Found matching existing session with ID: " + session.getId());
-                    return session;
-                }
-            }
-        }
-        
-        System.out.println("➕ Creating new TimetableSession for subject: " + subjectName);
-        return createTimetableSession(dto);
-    }
-
-    /**
-     * Create a new TimetableSession with provided metadata
-     */
-    private TimetableSession createTimetableSession(AttendanceSubmissionDTO dto) {
-        TimetableSession session = new TimetableSession();
-        session.setSubjectName(dto.getSubjectName() != null ? dto.getSubjectName() : "Unknown Subject");
-        session.setDepartment(dto.getDepartment() != null ? dto.getDepartment() : "Unknown");
-        session.setSemester(dto.getSemester() != null ? dto.getSemester() : 1);
-        session.setSection(dto.getSection() != null ? dto.getSection() : "A");
-        session.setDayOfWeek("Monday");
-        session.setStartTime(LocalTime.of(9, 0));
-        session.setEndTime(LocalTime.of(10, 0));
-        session.setActive(true);
-        
-        TimetableSession saved = timetableSessionRepository.save(session);
-        System.out.println("✅ New TimetableSession created with ID: " + saved.getId());
-        return saved;
-    }
 
     /**
      * Legacy method for backward compatibility
+     * FIXED: Now requires valid timetableSession with ID - NO AUTO-CREATION
      */
     public SessionAttendance mark(SessionAttendance attendance) {
+        if (attendance.getTimetableSession() == null || 
+            attendance.getTimetableSession().getId() == null || 
+            attendance.getTimetableSession().getId() == 0) {
+            throw new RuntimeException("TimetableSession must be provided with valid ID. Auto-creation is not allowed.");
+        }
 
         LocalDate today = LocalDate.now();
-
-        // If TimetableSession ID is 0 or null, find or create one based on subject/department/semester/section
-        if (attendance.getTimetableSession() == null || attendance.getTimetableSession().getId() == null || attendance.getTimetableSession().getId() == 0) {
-            TimetableSession session = findOrCreateTimetableSessionFromEntity(attendance);
-            attendance.setTimetableSession(session);
-        }
 
         Optional<SessionAttendance> existing =
             repo.findByStudentIdAndTimetableSessionIdAndDate(
@@ -161,64 +105,11 @@ public class SessionAttendanceService {
 
         if (existing.isPresent()) {
             SessionAttendance record = existing.get();
-
             record.setStatus(attendance.getStatus());
-
             return repo.save(record);
         }
 
         attendance.setDate(today);
         return repo.save(attendance);
-    }
-
-    /**
-     * Find or create TimetableSession from SessionAttendance entity
-     */
-    private TimetableSession findOrCreateTimetableSessionFromEntity(SessionAttendance attendance) {
-        TimetableSession sessionFromRequest = attendance.getTimetableSession();
-        
-        if (sessionFromRequest == null) {
-            TimetableSession newSession = new TimetableSession();
-            newSession.setDepartment("Unknown");
-            newSession.setSemester(1);
-            newSession.setSection("A");
-            newSession.setDayOfWeek("Monday");
-            newSession.setStartTime(LocalTime.now());
-            newSession.setEndTime(LocalTime.now().plusHours(1));
-            newSession.setActive(true);
-            return timetableSessionRepository.save(newSession);
-        }
-        
-        String subjectName = sessionFromRequest.getSubjectName() != null ? sessionFromRequest.getSubjectName() : "Unknown";
-        String department = sessionFromRequest.getDepartment() != null ? sessionFromRequest.getDepartment() : "Unknown";
-        int semester = sessionFromRequest.getSemester() > 0 ? sessionFromRequest.getSemester() : 1;
-        String section = sessionFromRequest.getSection() != null ? sessionFromRequest.getSection() : "A";
-        
-        java.util.List<TimetableSession> existingSessions = timetableSessionRepository.findAll();
-        for (TimetableSession session : existingSessions) {
-            if (session.getDepartment().equals(department) &&
-                session.getSemester() == semester &&
-                (session.getSection() == null || session.getSection().equals(section)) &&
-                session.getSubjectName() != null &&
-                session.getSubjectName().equals(subjectName)) {
-                return session;
-            }
-        }
-        
-        sessionFromRequest.setDepartment(department);
-        sessionFromRequest.setSemester(semester);
-        sessionFromRequest.setSection(section);
-        if (sessionFromRequest.getDayOfWeek() == null) {
-            sessionFromRequest.setDayOfWeek("Monday");
-        }
-        if (sessionFromRequest.getStartTime() == null) {
-            sessionFromRequest.setStartTime(LocalTime.now());
-        }
-        if (sessionFromRequest.getEndTime() == null) {
-            sessionFromRequest.setEndTime(LocalTime.now().plusHours(1));
-        }
-        sessionFromRequest.setActive(true);
-        
-        return timetableSessionRepository.save(sessionFromRequest);
     }
 }

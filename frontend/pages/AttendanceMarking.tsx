@@ -117,6 +117,7 @@ const AttendanceMarking: React.FC = () => {
           sessionId={selectedSession.sessionId}
           sessionTime={`${selectedSession.startTime} - ${selectedSession.endTime}`}
           subjectName={selectedSession.subject}
+          classId={selectedSession.classId}
           department={selectedSession.department}
           semester={selectedSession.semester}
           section={selectedSession.section}

@@ -38,14 +38,17 @@ CREATE TABLE student (
     email VARCHAR(100),
     phone VARCHAR(15),
     section VARCHAR(10),
+    class_id BIGINT,
     user_id BIGINT,
     active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE SET NULL,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
     INDEX idx_roll_no (roll_no),
     INDEX idx_department (department),
-    INDEX idx_semester (semester)
+    INDEX idx_semester (semester),
+    INDEX idx_class_id (class_id)
 ) ENGINE=InnoDB;
 
 -- ========================================
