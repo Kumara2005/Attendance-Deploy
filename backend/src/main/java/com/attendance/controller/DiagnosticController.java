@@ -195,3 +195,4 @@ public class DiagnosticController {
             return ResponseEntity.status(500).body(error);
         }
     }
+}
