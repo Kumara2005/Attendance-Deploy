@@ -33,6 +33,10 @@ public class SessionAttendance {
     @JoinColumn(name = "session_id")
     private TimetableSession timetableSession;
 
+    // Legacy column - deprecated but kept for backward compatibility
+    @Column(name = "present", columnDefinition = "BOOLEAN DEFAULT TRUE")
+    private Boolean present = true;
+
 
     public SessionAttendance() {
     }

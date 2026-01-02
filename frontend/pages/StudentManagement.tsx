@@ -49,6 +49,7 @@ const StudentManagement: React.FC<StudentManagementProps> = ({ userRole }) => {
   const [editingItem, setEditingItem] = useState<any>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
+  const [staffCodeError, setStaffCodeError] = useState<string | null>(null);
 
   // Fetch students from backend on mount
   useEffect(() => {
@@ -119,8 +120,8 @@ const StudentManagement: React.FC<StudentManagementProps> = ({ userRole }) => {
     const staffArray = Array.isArray(staff) ? staff : [];
     
     return staffArray.filter(s => {
-      const matchesSearch = s.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                           s.email?.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesSearch = (s.name || "").toLowerCase().includes(searchTerm.toLowerCase()) || 
+                           (s.email || "")?.toLowerCase().includes(searchTerm.toLowerCase());
       
       const matchesYear = yearFilter === '' || s.year === yearFilter;
 
@@ -141,6 +142,7 @@ const StudentManagement: React.FC<StudentManagementProps> = ({ userRole }) => {
     if (!isAdmin) return;
     setEditingItem(item);
     setPasswordInput('');
+    setStaffCodeError(null);
     setIsEditModalOpen(true);
   };
 
@@ -194,7 +196,7 @@ const StudentManagement: React.FC<StudentManagementProps> = ({ userRole }) => {
             name: data.name,
             rollNo: data.rollNumber,
             department: data.class,
-            semester: parseInt(data.section) || 1,
+            semester: parseInt(data.semester) || 1,
             section: data.section,
             email: data.email,
             phone: data.phone,
@@ -207,8 +209,8 @@ const StudentManagement: React.FC<StudentManagementProps> = ({ userRole }) => {
             name: data.name,
             rollNo: data.rollNumber,
             department: data.class,
-            semester: parseInt(data.section) || 1,
-            section: data.section || 'Year 1',
+            semester: parseInt(data.semester) || 1,
+            section: data.section,
             status: 'ACTIVE',
           };
           const created = await studentService.create(newStudent);
@@ -226,6 +228,8 @@ const StudentManagement: React.FC<StudentManagementProps> = ({ userRole }) => {
       // Staff management with backend API
       try {
         setIsSaving(true);
+        setStaffCodeError(null);
+        
         if (editingItem) {
           // Update existing staff
           const updated = await staffService.update(editingItem.id as number, {
@@ -241,9 +245,20 @@ const StudentManagement: React.FC<StudentManagementProps> = ({ userRole }) => {
           });
           setStaff(prev => prev.map(s => s.id === editingItem.id ? updated : s));
         } else {
-          // Create new staff with registration endpoint
+          // Create new staff - validate staff code first
+          const staffCode = data.staffCode?.trim();
+          
+          // Check if staff code already exists
+          const staffArray = Array.isArray(staff) ? staff : [];
+          const codeExists = staffArray.some(s => s.staffCode?.toUpperCase() === staffCode?.toUpperCase());
+          if (codeExists) {
+            setStaffCodeError(`Staff code "${staffCode}" is already in use. Please use a different code.`);
+            setIsSaving(false);
+            return;
+          }
+          
           const newStaff: StaffDTO = {
-            staffCode: data.staffCode,
+            staffCode: staffCode,
             name: data.name,
             email: data.email,
             password: passwordInput || data.password,
@@ -388,10 +403,10 @@ const StudentManagement: React.FC<StudentManagementProps> = ({ userRole }) => {
                   <td className="px-8 py-6">
                     <div className="flex items-center gap-4">
                       <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-sm group-hover:scale-110 transition-transform shadow-sm ${activeTab === 'students' ? 'bg-indigo-50 text-indigo-600' : 'bg-violet-50 text-violet-600'}`}>
-                        {item.name.charAt(0)}
+                        {(item.name || "U").charAt(0)}
                       </div>
                       <div>
-                        <p className="font-black text-slate-900 text-lg tracking-tight leading-none mb-1.5">{item.name}</p>
+                        <p className="font-black text-slate-900 text-lg tracking-tight leading-none mb-1.5">{item.name || "Unknown"}</p>
                         <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{item.email || `${item.department} | ${item.section}`}</p>
                       </div>
                     </div>
@@ -463,11 +478,25 @@ const StudentManagement: React.FC<StudentManagementProps> = ({ userRole }) => {
                 <button type="button" onClick={() => setIsEditModalOpen(false)} className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 hover:text-slate-900 border border-slate-100 transition-all"><X className="w-6 h-6" /></button>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                {!editingItem && activeTab === 'faculty' && Array.isArray(staff) && staff.length > 0 && (
+                  <div className="md:col-span-2 p-4 bg-amber-50 border border-amber-200 rounded-2xl">
+                    <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest mb-3">⚠️ Existing Staff Codes</p>
+                    <div className="flex flex-wrap gap-2">
+                      {staff.map((s) => (
+                        <span key={s.id} className="px-3 py-1.5 bg-amber-100 text-amber-800 text-xs font-bold rounded-lg">
+                          {s.staffCode}
+                        </span>
+                      ))}
+                    </div>
+                    <p className="text-xs text-amber-700 mt-3">Use a different code for the new staff member (e.g., STAFF002, STAFF003, etc.)</p>
+                  </div>
+                )}
                 <div className="space-y-3"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Full Name</label><input required name="name" defaultValue={editingItem?.name || ''} className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-5 font-bold text-slate-900 outline-none focus:ring-4 focus:ring-indigo-100" /></div>
                 {activeTab === 'students' ? (
                   <>
                     <div className="space-y-3"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Roll Number</label><input required name="rollNumber" defaultValue={editingItem?.rollNo || ''} className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-5 font-bold text-slate-900 outline-none focus:ring-4 focus:ring-indigo-100" /></div>
-                    <div className="space-y-3"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Semester</label><select required name="section" defaultValue={editingItem?.semester?.toString() || yearFilter || '1'} className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-5 font-bold text-slate-900 outline-none focus:ring-4 focus:ring-indigo-100"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option></select></div>
+                    <div className="space-y-3"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Semester</label><select required name="semester" defaultValue={editingItem?.semester?.toString() || yearFilter || '1'} className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-5 font-bold text-slate-900 outline-none focus:ring-4 focus:ring-indigo-100"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option></select></div>
+                    <div className="space-y-3"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Section</label><select required name="section" defaultValue={editingItem?.section || 'A'} className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-5 font-bold text-slate-900 outline-none focus:ring-4 focus:ring-indigo-100"><option value="A">A</option><option value="B">B</option><option value="C">C</option><option value="D">D</option><option value="E">E</option><option value="F">F</option><option value="G">G</option><option value="H">H</option></select></div>
                     <div className="space-y-3 md:col-span-2"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Department</label><input required name="class" defaultValue={editingItem?.department || (deptContext ? deptContext : 'Computer Science')} className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-5 font-bold text-slate-900 outline-none focus:ring-4 focus:ring-indigo-100" /></div>
                     <div className="space-y-3 md:col-span-2"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Email</label><input type="email" name="email" defaultValue={editingItem?.email || ''} className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-5 font-bold text-slate-900 outline-none focus:ring-4 focus:ring-indigo-100" /></div>
                     <div className="space-y-3 md:col-span-2"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Phone</label><input type="tel" name="phone" defaultValue={editingItem?.phone || ''} className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-5 font-bold text-slate-900 outline-none focus:ring-4 focus:ring-indigo-100" /></div>
@@ -481,7 +510,28 @@ const StudentManagement: React.FC<StudentManagementProps> = ({ userRole }) => {
                   </>
                 ) : (
                   <>
-                    <div className="space-y-3"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Staff Code</label><input required name="staffCode" defaultValue={editingItem?.staffCode || ''} className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-5 font-bold text-slate-900 outline-none focus:ring-4 focus:ring-indigo-100" placeholder="e.g., STAFF001" /></div>
+                    <div className="space-y-3">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Staff Code</label>
+                      <input 
+                        required 
+                        name="staffCode" 
+                        defaultValue={editingItem?.staffCode || ''} 
+                        onChange={() => setStaffCodeError(null)}
+                        className={`w-full bg-slate-50 border rounded-2xl px-6 py-5 font-bold text-slate-900 outline-none focus:ring-4 transition-all ${
+                          staffCodeError 
+                            ? 'border-rose-300 focus:ring-rose-100' 
+                            : 'border-slate-100 focus:ring-indigo-100'
+                        }`}
+                        placeholder="e.g., STAFF001" 
+                        disabled={editingItem ? true : false}
+                      />
+                      {staffCodeError && (
+                        <div className="flex items-start gap-2 p-3 bg-rose-50 border border-rose-200 rounded-xl">
+                          <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0 mt-0.5" />
+                          <p className="text-xs font-semibold text-rose-700">{staffCodeError}</p>
+                        </div>
+                      )}
+                    </div>
                     <div className="space-y-3 md:col-span-2"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Institutional Email</label><input required type="email" name="email" defaultValue={editingItem?.email || ''} className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-5 font-bold text-slate-900 outline-none focus:ring-4 focus:ring-indigo-100" /></div>
                     {!editingItem && (
                       <div className="space-y-2 md:col-span-2">

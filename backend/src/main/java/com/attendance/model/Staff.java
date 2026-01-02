@@ -3,6 +3,7 @@ package com.attendance.model;
 import java.util.List;
 
 import jakarta.persistence.*;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 @Entity
 @Table(name = "staff")
@@ -35,6 +36,7 @@ public class Staff {
     // One staff has one login user
     @OneToOne
     @JoinColumn(name = "user_id", nullable = false)
+    @JsonIgnore
     private User user;
 
     // One staff can handle multiple subjects
@@ -44,6 +46,7 @@ public class Staff {
         joinColumns = @JoinColumn(name = "staff_id"),
         inverseJoinColumns = @JoinColumn(name = "subject_id")
     )
+    @JsonIgnore
     private List<Subject> subjects;
 
     private boolean active = true;

@@ -14,8 +14,11 @@ import java.util.stream.Collectors;
  * Database Initializer
  * Automatically applies database migrations on application startup
  * Ensures attendance system can create sessions dynamically without predefined staff/class
+ * 
+ * TEMPORARILY DISABLED: 2026-01-02 - Connection pool issues during initialization
+ * Apply migrations manually using database/fix-timetable-semester.sql
  */
-@Component
+// @Component  // TEMPORARILY DISABLED - causing connection pool shutdown
 public class DatabaseInitializer implements CommandLineRunner {
 
     private static final Logger logger = LoggerFactory.getLogger(DatabaseInitializer.class);

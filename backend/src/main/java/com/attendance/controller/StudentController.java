@@ -1,6 +1,7 @@
 package com.attendance.controller;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -16,6 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.attendance.dto.ApiResponse;
 import com.attendance.dto.StudentDTO;
+import com.attendance.dto.QuickAttendanceStudentDTO;
 import com.attendance.service.StudentService;
 
 import jakarta.validation.Valid;
@@ -43,7 +45,7 @@ public class StudentController {
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
-    public ResponseEntity<ApiResponse<List<StudentDTO>>> getAll(
+    public ResponseEntity<ApiResponse<List<?>>> getAll(
             @RequestParam(required = false) Long classId,
             @RequestParam(required = false) String department,
             @RequestParam(required = false) Integer semester,
@@ -55,14 +57,27 @@ public class StudentController {
         System.out.println("   semester: " + semester);
         System.out.println("   section: " + section);
         
-        List<StudentDTO> students;
+        List<?> students;
         if (classId != null) {
             System.out.println("   → Fetching students by classId...");
             students = service.getByClassId(classId);
             System.out.println("   → Found " + students.size() + " students");
         } else if (department != null && semester != null && section != null) {
             System.out.println("   → Fetching filtered students by department+semester+section...");
-            students = service.getByDepartmentSemesterSection(department, semester, section);
+            // For QuickAttendance, return with mapped field names
+            List<StudentDTO> dtos = service.getByDepartmentSemesterSection(department, semester, section);
+            students = dtos.stream()
+                .map(dto -> {
+                    QuickAttendanceStudentDTO qa = new QuickAttendanceStudentDTO();
+                    qa.setStudentId(dto.getId());
+                    qa.setStudentName(dto.getName());
+                    qa.setRollNumber(dto.getRollNo());
+                    qa.setDepartment(dto.getDepartment());
+                    qa.setSemester(dto.getSemester());
+                    qa.setSection(dto.getSection());
+                    return qa;
+                })
+                .collect(Collectors.toList());
             System.out.println("   → Found " + students.size() + " students");
         } else {
             System.out.println("   → Fetching ALL students...");

@@ -8,8 +8,11 @@ import com.attendance.repository.StaffRepository;
 import com.attendance.repository.SubjectRepository;
 import com.attendance.repository.TimetableSessionRepository;
 import com.attendance.repository.ClassRepository;
+import com.attendance.service.TimetableManagementService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.LocalTime;
 import java.util.HashMap;
@@ -20,31 +23,41 @@ import java.util.Optional;
 /**
  * Admin Timetable Controller
  * Handles CRUD operations for timetable sessions (Admin only)
+ * 
+ * PERMANENT FIX: Now uses TimetableManagementService for validation
+ * Ensures students exist for department/semester before creating sessions
+ * Auto-corrects semester mismatches
  */
 @RestController
 @RequestMapping("/api/admin/timetable")
 @CrossOrigin(origins = {"http://localhost:3000", "http://localhost:3003", "http://localhost:3007", "http://localhost:5173"})
 public class AdminTimetableController {
 
+    private static final Logger logger = LoggerFactory.getLogger(AdminTimetableController.class);
+
     private final TimetableSessionRepository timetableRepository;
     private final SubjectRepository subjectRepository;
     private final StaffRepository staffRepository;
     private final ClassRepository classRepository;
+    private final TimetableManagementService timetableManagementService;
 
     public AdminTimetableController(
             TimetableSessionRepository timetableRepository,
             SubjectRepository subjectRepository,
             StaffRepository staffRepository,
-            ClassRepository classRepository) {
+            ClassRepository classRepository,
+            TimetableManagementService timetableManagementService) {
         this.timetableRepository = timetableRepository;
         this.subjectRepository = subjectRepository;
         this.staffRepository = staffRepository;
         this.classRepository = classRepository;
+        this.timetableManagementService = timetableManagementService;
     }
 
     /**
      * Create or Update a timetable session
      * Handles grid cell assignments from Admin Portal
+     * REQUIRES: Subject must have staff assigned before creating timetable session
      */
     @PostMapping("/session")
     public ResponseEntity<ApiResponse<Map<String, Object>>> createOrUpdateSession(
@@ -56,51 +69,68 @@ public class AdminTimetableController {
                         .body(ApiResponse.error("Day and period are required"));
             }
 
-            // Find subject (use default/placeholder if not found)
+            // Find subject - Can be null for FREE PERIODS
             Subject subject = null;
             if (request.getSubjectCode() != null && !request.getSubjectCode().isEmpty()) {
                 subject = subjectRepository.findBySubjectCode(request.getSubjectCode())
                         .orElse(null);
+                
+                if (subject == null && request.getSubjectCode() != null) {
+                    return ResponseEntity.badRequest()
+                            .body(ApiResponse.error("Subject with code '" + 
+                                    request.getSubjectCode() + "' not found"));
+                }
             }
             
-            // If subject is still null, try to get any default subject
-            if (subject == null) {
-                // Get first available subject for department and semester
-                subject = subjectRepository
-                        .findByDepartmentAndSemester(
-                                request.getDepartment(),
-                                request.getSemester())
-                        .stream()
-                        .findFirst()
-                        .orElse(null);
-            }
-
-            // Find staff (optional - can be null for now)
+            // Staff validation - ONLY if subject is provided (skip for free periods)
             Staff staff = null;
-            if (request.getStaffCode() != null && !request.getStaffCode().isEmpty()) {
-                staff = staffRepository.findByStaffCode(request.getStaffCode())
-                        .orElse(null);
-            }
-            
-            // If staff is still null, get any active staff from department
-            if (staff == null) {
-                staff = staffRepository
-                        .findByDepartmentAndActive(request.getDepartment(), true)
-                        .stream()
-                        .findFirst()
-                        .orElse(null);
-            }
-            
-            // Final check: if no subject or staff available, return error
-            if (subject == null || staff == null) {
-                return ResponseEntity.badRequest()
-                        .body(ApiResponse.error(
-                                "Cannot save: " + 
-                                (subject == null ? "No subjects available. " : "") +
-                                (staff == null ? "No staff available. " : "") +
-                                "Please add subjects and staff for department '" + 
-                                request.getDepartment() + "' first."));
-            }
+            if (subject != null) {
+                // Validate subject has staff assigned - CRITICAL CHECK
+                final Subject finalSubject = subject; // Make effectively final for lambda
+                List<Staff> assignedStaff = staffRepository.findAll().stream()
+                        .filter(staffMember -> {
+                            // Check if staff has this subject in the subjects collection
+                            boolean inCollection = staffMember.getSubjects() != null && 
+                                                  staffMember.getSubjects().contains(finalSubject);
+                            
+                            // Check if staff has this subject name in the subject string field
+                            boolean matchesSubjectName = staffMember.getSubject() != null && 
+                                                        staffMember.getSubject().equalsIgnoreCase(finalSubject.getSubjectName());
+                            
+                            return inCollection || matchesSubjectName;
+                        })
+                        .toList();
+                
+                if (assignedStaff.isEmpty()) {
+                    return ResponseEntity.badRequest()
+                            .body(ApiResponse.error(
+                                    "Cannot create timetable session: Subject '" + 
+                                    subject.getSubjectName() + 
+                                    "' has no staff assigned.\n\n" +
+                                    "Please assign staff to this subject first in Admin Settings."));
+                }
+
+                // Find staff (optional - can pick from assigned staff)
+                if (request.getStaffCode() != null && !request.getStaffCode().isEmpty()) {
+                    staff = staffRepository.findByStaffCode(request.getStaffCode())
+                            .orElse(null);
+                    
+                    // Validate this staff is actually assigned to the subject
+                    if (staff != null && !assignedStaff.contains(staff)) {
+                        return ResponseEntity.badRequest()
+                                .body(ApiResponse.error(
+                                    "Cannot assign staff: " + staff.getName() + 
+                                    " is not assigned to subject '" + subject.getSubjectName() + "'."));
+                    }
+                }
+                
+                // If no staff selected, use first assigned staff
+                if (staff == null && !assignedStaff.isEmpty()) {
+                    staff = assignedStaff.get(0);
+                    logger.info("✅ Auto-assigned staff {} to session for subject {}", 
+                          staff.getName(), subject.getSubjectName());
+                }
+            } // End of: if (subject != null)
 
             // Check for existing session at this slot
             TimetableSession session = null;
@@ -141,12 +171,16 @@ public class AdminTimetableController {
             session.setRoomNumber(request.getRoomNumber());
             session.setActive(true);
 
-            if (subject != null) {
-                session.setSubject(subject);
+            // Set sessionNumber - required field
+            Integer sessionNum = request.getPeriodNumber();
+            if (sessionNum == null) {
+                sessionNum = 1; // Default to 1 if not provided
             }
-            if (staff != null) {
-                session.setStaff(staff);
-            }
+            session.setSessionNumber(sessionNum);
+
+            // Set subject and staff (both validated above)
+            session.setSubject(subject);
+            session.setStaff(staff);
 
             // Bind classEntity based on department, semester -> year, and section if available
             int year = (request.getSemester() + 1) / 2;
@@ -154,7 +188,24 @@ public class AdminTimetableController {
                 request.getDepartment(), year, request.getSemester(), request.getSection()
             ).ifPresent(session::setClassEntity);
 
-            TimetableSession savedSession = timetableRepository.save(session);
+            // PERMANENT FIX: Use TimetableManagementService to validate and save
+            // This ensures students exist for the department/semester before creating session
+            // Auto-corrects semester if mismatch detected
+            TimetableSession savedSession;
+            try {
+                if (session.getId() != null) {
+                    // Update existing session
+                    savedSession = timetableManagementService.updateSession(session.getId(), session);
+                } else {
+                    // Create new session with validation
+                    savedSession = timetableManagementService.createSession(session);
+                }
+            } catch (IllegalArgumentException e) {
+                logger.error("❌ Session save rejected: {}", e.getMessage());
+                return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("Cannot save session: " + e.getMessage() + 
+                        "\n\nPlease ensure students are registered in the selected department and semester."));
+            }
 
             // Build response
             Map<String, Object> response = new HashMap<>();

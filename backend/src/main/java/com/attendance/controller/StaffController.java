@@ -123,27 +123,52 @@ public class StaffController {
     
     /**
      * Assign staff to all timetable sessions that teach their subject
+     * This creates a bidirectional sync between Staff-Subject-TimetableSession
      */
     private void assignStaffToTimetableSessions(Staff staff) {
         try {
             // If staff has subjects, find and assign them to matching timetable sessions
             if (staff.getSubjects() != null && !staff.getSubjects().isEmpty()) {
+                long totalAssigned = 0;
+                
                 for (Subject subject : staff.getSubjects()) {
-                    // Find all timetable sessions for this subject
+                    System.out.println("🔗 Processing subject '" + subject.getSubjectName() + "' (ID=" + subject.getId() + ") for staff: " + staff.getName());
+                    
+                    // Find all ACTIVE timetable sessions for this subject (regardless of current staff assignment)
                     List<TimetableSession> sessionsForSubject = timetableRepo.findBySubjectIdAndActiveTrue(subject.getId());
+                    
+                    System.out.println("📚 Found " + sessionsForSubject.size() + " active sessions for subject: " + subject.getSubjectName());
                     
                     // Assign staff to those sessions
                     for (TimetableSession session : sessionsForSubject) {
+                        // IMPORTANT: Assign staff even if another staff was assigned before
+                        // This ensures the most recently registered staff for a subject gets the sessions
+                        Long previousStaffId = session.getStaff() != null ? session.getStaff().getId() : null;
+                        
                         session.setStaff(staff);
-                        timetableRepo.save(session);
+                        session.setFacultyId(String.valueOf(staff.getId())); // Update transient field
+                        session.setFacultyName(staff.getName()); // Update transient field
+                        
+                        TimetableSession saved = timetableRepo.save(session);
+                        totalAssigned++;
+                        
+                        if (previousStaffId != null && !previousStaffId.equals(staff.getId())) {
+                            System.out.println("  ✅ Updated session ID=" + session.getId() + ": Assigned from Staff(ID=" + previousStaffId + ") → Staff(ID=" + staff.getId() + ") " + staff.getName());
+                        } else {
+                            System.out.println("  ✅ Assigned session ID=" + session.getId() + " to " + staff.getName() + " (" + session.getDayOfWeek() + " " + session.getStartTime() + ")");
+                        }
                     }
                     
-                    System.out.println("✅ Assigned " + staff.getName() + " to " + sessionsForSubject.size() 
-                        + " timetable sessions for subject: " + subject.getSubjectName());
+                    System.out.println("✅ Total assignments for subject '" + subject.getSubjectName() + "': " + sessionsForSubject.size());
                 }
+                
+                System.out.println("✅ Staff '" + staff.getName() + "' (ID=" + staff.getId() + ") now has access to " + totalAssigned + " total timetable sessions");
+            } else {
+                System.out.println("⚠️ Staff '" + staff.getName() + "' has no subjects assigned yet");
             }
         } catch (Exception e) {
             System.err.println("⚠️ Warning: Could not auto-assign staff to timetable sessions: " + e.getMessage());
+            e.printStackTrace();
             // Don't fail the registration if assignment fails
         }
     }

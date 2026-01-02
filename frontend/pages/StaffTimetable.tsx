@@ -14,6 +14,7 @@ interface TimetableSession {
   endTime: string;
   subjectName: string;
   classContext: string;
+  classId?: number; // Class entity ID if available
   semester?: number; // returned by backend timetable session
   section?: string;  // returned by backend timetable session
 }
@@ -365,6 +366,7 @@ const StaffTimetable: React.FC = () => {
           sessionId={selectedSession.id}
           sessionTime={`${formatTo12h(selectedSession.startTime)} - ${formatTo12h(selectedSession.endTime)}`}
           subjectName={selectedSession.subjectName}
+          classId={selectedSession.classId}
           department={selectedDepartment}
           semester={selectedSession.semester || selectedYear as number}
           section={selectedSession.section || selectedClass}

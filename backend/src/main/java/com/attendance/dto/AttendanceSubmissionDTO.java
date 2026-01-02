@@ -1,7 +1,10 @@
 package com.attendance.dto;
 
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import com.attendance.model.AttendanceStatus;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 /**
  * DTO for submitting attendance
@@ -11,7 +14,11 @@ public class AttendanceSubmissionDTO {
     
     private Long studentId;
     private Long timetableSessionId;
-    private LocalDate date;
+    
+    // Accept date as string (ISO format YYYY-MM-DD) from frontend
+    @JsonProperty("date")
+    private String dateString;
+    
     private AttendanceStatus status;
     
     // Additional metadata to help create session if needed
@@ -23,10 +30,10 @@ public class AttendanceSubmissionDTO {
     public AttendanceSubmissionDTO() {
     }
     
-    public AttendanceSubmissionDTO(Long studentId, Long timetableSessionId, LocalDate date, AttendanceStatus status) {
+    public AttendanceSubmissionDTO(Long studentId, Long timetableSessionId, String dateString, AttendanceStatus status) {
         this.studentId = studentId;
         this.timetableSessionId = timetableSessionId;
-        this.date = date;
+        this.dateString = dateString;
         this.status = status;
     }
     
@@ -47,12 +54,34 @@ public class AttendanceSubmissionDTO {
         this.timetableSessionId = timetableSessionId;
     }
     
-    public LocalDate getDate() {
-        return date;
+    public String getDateString() {
+        return dateString;
     }
     
+    public void setDateString(String dateString) {
+        this.dateString = dateString;
+    }
+    
+    /**
+     * Parse the date string to LocalDate
+     * This method is for internal use only, not for JSON deserialization
+     */
+    @JsonIgnore
+    public LocalDate getDate() {
+        if (dateString == null) {
+            return LocalDate.now();
+        }
+        try {
+            return LocalDate.parse(dateString, DateTimeFormatter.ISO_DATE);
+        } catch (Exception e) {
+            System.err.println("❌ Failed to parse date: " + dateString);
+            return LocalDate.now();
+        }
+    }
+    
+    @JsonIgnore
     public void setDate(LocalDate date) {
-        this.date = date;
+        this.dateString = date != null ? date.toString() : null;
     }
     
     public AttendanceStatus getStatus() {
@@ -100,7 +129,7 @@ public class AttendanceSubmissionDTO {
         return "AttendanceSubmissionDTO{" +
                 "studentId=" + studentId +
                 ", timetableSessionId=" + timetableSessionId +
-                ", date=" + date +
+                ", dateString='" + dateString + '\'' +
                 ", status=" + status +
                 ", subjectName='" + subjectName + '\'' +
                 ", department='" + department + '\'' +

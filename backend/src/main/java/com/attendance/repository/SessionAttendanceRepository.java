@@ -32,13 +32,14 @@ public interface SessionAttendanceRepository extends JpaRepository<SessionAttend
 	);
 	
 	// Additional queries for statistics
-		    @Query("SELECT ts.subject.subjectName, " +
-			    "SUM(CASE WHEN sa.status IN ('PRESENT','OD') THEN 1 ELSE 0 END), " +
-			    "COUNT(sa) " +
-	       "FROM SessionAttendance sa " +
-	       "JOIN sa.timetableSession ts " +
-	       "WHERE sa.student.id = :studentId " +
-	       "GROUP BY ts.subject.subjectName")
+	@Query("SELECT COALESCE(sub.subjectName, 'Unknown Subject'), " +
+		   "SUM(CASE WHEN sa.status = 'PRESENT' OR sa.status = 'OD' THEN 1 ELSE 0 END), " +
+		   "COUNT(sa) " +
+		   "FROM SessionAttendance sa " +
+		   "JOIN sa.timetableSession ts " +
+		   "LEFT JOIN ts.subject sub " +
+		   "WHERE sa.student.id = :studentId " +
+		   "GROUP BY sub.id, sub.subjectName")
 	List<Object[]> findAttendanceByStudentGroupedBySubject(@Param("studentId") Long studentId);
 	
 		    @Query("SELECT AVG(CAST(SUM(CASE WHEN sa.status IN ('PRESENT','OD') THEN 1 ELSE 0 END) AS double) * 100.0 / COUNT(sa)) " +
@@ -60,9 +61,31 @@ public interface SessionAttendanceRepository extends JpaRepository<SessionAttend
 		     "WHERE ts.department = :department " +
 		     "GROUP BY sa.student.id")
 	    Double calculateAverageAttendanceByDepartment(@Param("department") String department);
-	
-	boolean existsByTimetableSessionSubjectIdAndDateAndTimetableSessionStartTime(
-	        Long subjectId, LocalDate date, LocalTime sessionTime);
+	    
+	    /**
+	     * Simple fallback: Get average attendance without complex grouping
+	     * Returns simple average across all attendance records for a department-semester
+	     */
+	    @Query("SELECT AVG(CASE WHEN sa.status IN ('PRESENT','OD') THEN 100.0 ELSE 0.0 END) " +
+	           "FROM SessionAttendance sa " +
+	           "JOIN sa.timetableSession ts " +
+	           "WHERE ts.department = :department AND ts.semester = :semester")
+	    Double getSimpleAverageAttendance(
+	            @Param("department") String department,
+	            @Param("semester") int semester);
+
+	    /**
+	     * Check if attendance already marked for a session
+	     * Fixed to properly access subject.id through relationship
+	     */
+	    @Query("SELECT CASE WHEN COUNT(sa) > 0 THEN true ELSE false END " +
+	           "FROM SessionAttendance sa " +
+	           "WHERE sa.timetableSession.subject.id = :subjectId " +
+	           "AND sa.date = :date " +
+	           "AND sa.timetableSession.startTime = :sessionTime")
+	    boolean existsByTimetableSessionSubjectIdAndDateAndTimetableSessionStartTime(
+	            @Param("subjectId") Long subjectId,
+	            @Param("date") LocalDate date,
+	            @Param("sessionTime") LocalTime sessionTime);
 
 }
-

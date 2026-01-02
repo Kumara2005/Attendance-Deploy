@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Download, Users, TrendingUp, Clock, FileText, GraduationCap, AlertCircle, MapPin, Play, BookMarked } from 'lucide-react';
+import { Calendar, Download, Users, TrendingUp, Clock, FileText, GraduationCap, AlertCircle, MapPin, Play, BookMarked, Phone, Award, Briefcase } from 'lucide-react';
 import { UserRole } from '../types';
 import { getCurrentRole } from '../services/roles';
-import { getStudentDashboard, StudentDashboard, SubjectAttendance, TimetableSlot } from '../services/studentDashboardService';
+import { getStudentDashboard, getDepartmentFaculty, StudentDashboard, SubjectAttendance, TimetableSlot, Faculty } from '../services/studentDashboardService';
 
 // AttendanceDashboard Component (Student Only)
 interface AttendanceDashboardProps {
@@ -98,6 +98,8 @@ const StudentPortal: React.FC = () => {
   
   // State for dashboard data
   const [dashboardData, setDashboardData] = useState<StudentDashboard | null>(null);
+  const [facultyData, setFacultyData] = useState<Faculty[]>([]);
+  const [loadingFaculty, setLoadingFaculty] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   
@@ -116,6 +118,13 @@ const StudentPortal: React.FC = () => {
       fetchDashboardData();
     }
   }, [currentRole]);
+
+  // Fetch faculty when faculty tab is clicked
+  useEffect(() => {
+    if (activeTab === 'faculty' && facultyData.length === 0 && !loadingFaculty) {
+      fetchFacultyData();
+    }
+  }, [activeTab]);
   
   const fetchDashboardData = async () => {
     try {
@@ -128,6 +137,18 @@ const StudentPortal: React.FC = () => {
       setError(err.response?.data?.message || 'Failed to load dashboard data');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchFacultyData = async () => {
+    try {
+      setLoadingFaculty(true);
+      const faculty = await getDepartmentFaculty();
+      setFacultyData(faculty);
+    } catch (err: any) {
+      console.error('Failed to fetch faculty:', err);
+    } finally {
+      setLoadingFaculty(false);
     }
   };
 
@@ -307,91 +328,125 @@ const StudentPortal: React.FC = () => {
         />
       )}
 
-      {/* My Timetable Tab - Vertical Card List */}
+      {/* My Timetable Tab - Weekly Schedule */}
       {activeTab === 'timetable' && (
-        <div className="bg-white p-10 rounded-[3.5rem] border border-slate-100 shadow-lg">
-          <div className="flex items-center justify-between mb-10">
-            <div>
-              <h3 className="text-4xl font-black text-slate-900 tracking-tighter">Today's Schedule</h3>
-              <p className="text-sm text-slate-500 font-bold mt-2 uppercase tracking-widest">
-                {today} • {new Date().toLocaleDateString()}
-              </p>
-            </div>
-            <div className="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center border border-indigo-100 text-indigo-600">
-              <Calendar className="w-7 h-7" />
-            </div>
-          </div>
-
-          <div className="space-y-5">
-            {todaySchedule.length === 0 ? (
-              <div className="text-center py-16 text-slate-400">
-                <Calendar className="w-16 h-16 mx-auto mb-4 opacity-30" />
-                <p className="font-bold text-lg">No classes scheduled for today</p>
+        <div className="space-y-8">
+          {/* Today's Schedule Card */}
+          <div className="bg-gradient-to-br from-indigo-600 to-purple-600 p-10 rounded-[3.5rem] shadow-2xl text-white">
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <h3 className="text-4xl font-black tracking-tighter">Today's Schedule</h3>
+                <p className="text-indigo-200 font-bold mt-2 text-sm uppercase tracking-widest">
+                  {today} • {new Date().toLocaleDateString()}
+                </p>
               </div>
-            ) : (
-              todaySchedule.map((period, idx) => {
-                const isLive = isPeriodLive(period.startTime, period.endTime);
-                const isSpecial = period.subject === 'Free Period' || period.subject === 'Institutional Break';
-                
-                return (
-                  <div 
-                    key={idx}
-                    className={`p-7 rounded-[2.5rem] border transition-all relative ${
-                      isSpecial 
-                        ? 'bg-slate-50 border-slate-200' 
-                        : isLive 
-                        ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-300 shadow-xl shadow-green-500/10' 
-                        : 'bg-white border-slate-200 hover:border-indigo-300 hover:shadow-lg'
-                    }`}
-                  >
-                    {isLive && !isSpecial && (
-                      <div className="absolute top-5 right-5 px-4 py-2 bg-green-600 text-white rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-lg animate-pulse">
-                        <div className="w-2 h-2 bg-white rounded-full"></div>
-                        Live Now
-                      </div>
-                    )}
-                    
-                    <div className="flex items-start gap-6">
-                      <div className="flex-shrink-0">
-                        <div className={`text-center min-w-[100px] p-4 rounded-2xl ${
-                          isSpecial ? 'bg-slate-100' : isLive ? 'bg-green-600 text-white' : 'bg-indigo-600 text-white'
-                        }`}>
-                          <div className="text-2xl font-black">{period.startTime}</div>
-                          <div className="text-xs font-bold opacity-70 mt-1">to</div>
-                          <div className="text-2xl font-black">{period.endTime}</div>
+              <div className="w-14 h-14 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center border border-white/30">
+                <Calendar className="w-7 h-7 text-white" />
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              {todaySchedule.length === 0 ? (
+                <div className="text-center py-12 text-indigo-200">
+                  <Calendar className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                  <p className="font-bold">No classes scheduled for today</p>
+                </div>
+              ) : (
+                todaySchedule.map((period, idx) => {
+                  const isLive = isPeriodLive(period.startTime, period.endTime);
+                  
+                  return (
+                    <div 
+                      key={idx}
+                      className={`p-5 rounded-2xl backdrop-blur-sm border transition-all ${
+                        isLive 
+                          ? 'bg-green-500/30 border-green-300/50 ring-2 ring-green-400' 
+                          : 'bg-white/10 border-white/20 hover:bg-white/15'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <div className="text-white">
+                            <div className="text-lg font-black">{period.startTime} - {period.endTime}</div>
+                          </div>
+                          <div className="h-8 w-px bg-white/30"></div>
+                          <div>
+                            <h4 className="text-white font-black text-lg">{period.subject}</h4>
+                            <p className="text-indigo-200 text-sm font-bold">{period.faculty} • {period.location}</p>
+                          </div>
                         </div>
-                      </div>
-                      
-                      <div className="flex-1">
-                        <h4 className="text-2xl font-black text-slate-900 tracking-tight mb-2">
-                          {isSpecial ? (period.subject === 'Free Period' ? '⏸️ ' : '🍽️ ') : '📚 '}
-                          {period.subject}
-                        </h4>
-                        {!isSpecial && (
-                          <>
-                            <p className="text-sm font-bold text-slate-600 mb-2">
-                              👨‍🏫 {period.faculty}
-                            </p>
-                            <div className="flex items-center gap-4 flex-wrap">
-                              <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 rounded-xl border border-slate-200">
-                                <MapPin className="w-4 h-4 text-indigo-600" />
-                                <span className="text-sm font-bold text-slate-700">{period.location}</span>
-                              </div>
-                              {isLive && (
-                                <button className="flex items-center gap-2 px-5 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-all shadow-md font-bold text-sm">
-                                  <Play className="w-4 h-4" />
-                                  Join Class
-                                </button>
-                              )}
-                            </div>
-                          </>
+                        {isLive && (
+                          <div className="px-4 py-2 bg-green-500 text-white rounded-full text-xs font-black uppercase tracking-wider flex items-center gap-2 shadow-lg animate-pulse">
+                            <div className="w-2 h-2 bg-white rounded-full"></div>
+                            Live Now
+                          </div>
                         )}
                       </div>
                     </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          {/* Weekly Timetable */}
+          <div className="bg-white p-10 rounded-[3.5rem] border border-slate-100 shadow-lg">
+            <div className="flex items-center justify-between mb-10">
+              <h3 className="text-4xl font-black text-slate-900 tracking-tighter">Weekly Timetable</h3>
+              <div className="flex items-center gap-2 px-5 py-3 bg-indigo-50 rounded-2xl border border-indigo-100">
+                <Clock className="w-5 h-5 text-indigo-600" />
+                <span className="text-sm font-black text-indigo-900">Full Schedule</span>
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map((day) => {
+                const daySchedule = dashboardData.weeklyTimetable?.[day] || [];
+                const isToday = day === today;
+
+                return (
+                  <div key={day} className={`border rounded-[2rem] overflow-hidden transition-all ${isToday ? 'border-indigo-300 bg-indigo-50/30' : 'border-slate-200'}`}>
+                    <div className={`px-6 py-4 flex items-center justify-between ${isToday ? 'bg-indigo-600 text-white' : 'bg-slate-50'}`}>
+                      <h4 className={`text-xl font-black tracking-tight ${isToday ? 'text-white' : 'text-slate-900'}`}>
+                        {isToday && '📍 '}
+                        {day}
+                      </h4>
+                      <span className={`text-xs font-bold uppercase tracking-wider ${isToday ? 'text-indigo-200' : 'text-slate-500'}`}>
+                        {daySchedule.length} {daySchedule.length === 1 ? 'Class' : 'Classes'}
+                      </span>
+                    </div>
+                    
+                    <div className="p-6 space-y-3">
+                      {daySchedule.length === 0 ? (
+                        <p className="text-center text-slate-400 py-8 text-sm font-bold">No classes scheduled</p>
+                      ) : (
+                        daySchedule.map((period, idx) => (
+                          <div 
+                            key={idx}
+                            className="flex items-center gap-4 p-4 bg-white rounded-xl border border-slate-200 hover:border-indigo-300 hover:shadow-md transition-all"
+                          >
+                            <div className="flex-shrink-0 text-center min-w-[90px] px-3 py-2 bg-indigo-50 rounded-lg border border-indigo-100">
+                              <div className="text-sm font-black text-indigo-900">{period.startTime}</div>
+                              <div className="text-xs text-indigo-600">to</div>
+                              <div className="text-sm font-black text-indigo-900">{period.endTime}</div>
+                            </div>
+                            
+                            <div className="flex-1">
+                              <h5 className="font-black text-slate-900 text-base mb-1">{period.subject}</h5>
+                              <div className="flex items-center gap-4 text-sm">
+                                <span className="text-slate-600 font-bold">👨‍🏫 {period.faculty}</span>
+                                <span className="text-slate-400">•</span>
+                                <span className="text-slate-600 font-bold">📍 {period.location}</span>
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
                   </div>
                 );
-              })
-            )}
+              })}
+            </div>
           </div>
         </div>
       )}
@@ -403,7 +458,7 @@ const StudentPortal: React.FC = () => {
             <div>
               <h3 className="text-4xl font-black text-slate-900 tracking-tighter">Department Faculty</h3>
               <p className="text-sm text-slate-500 font-bold mt-2 uppercase tracking-widest">
-                {dashboardData.identity.department} • {dashboardData.identity.year}
+                {dashboardData.identity.department} Department
               </p>
             </div>
             <div className="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center border border-indigo-100 text-indigo-600">
@@ -411,11 +466,62 @@ const StudentPortal: React.FC = () => {
             </div>
           </div>
 
-          <div className="text-center py-16 text-slate-400">
-            <Users className="w-16 h-16 mx-auto mb-4 opacity-30" />
-            <p className="font-bold text-lg">Faculty directory coming soon</p>
-            <p className="text-sm mt-2">Contact your class coordinator for faculty information</p>
-          </div>
+          {loadingFaculty ? (
+            <div className="text-center py-16">
+              <div className="w-16 h-16 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+              <p className="text-slate-600 font-bold">Loading faculty...</p>
+            </div>
+          ) : facultyData.length === 0 ? (
+            <div className="text-center py-16 text-slate-400">
+              <Users className="w-16 h-16 mx-auto mb-4 opacity-30" />
+              <p className="font-bold text-lg">No faculty found</p>
+              <p className="text-sm mt-2">Contact your class coordinator for faculty information</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {facultyData.map((faculty) => (
+                <div 
+                  key={faculty.id}
+                  className="p-6 bg-slate-50 rounded-[2rem] border border-slate-200 hover:border-indigo-300 hover:shadow-lg transition-all"
+                >
+                  <div className="flex items-start gap-4">
+                    <div className="w-14 h-14 bg-indigo-600 rounded-2xl flex items-center justify-center text-white font-black text-xl flex-shrink-0">
+                      {faculty.name.charAt(0)}
+                    </div>
+                    
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-black text-slate-900 text-lg tracking-tight mb-1">{faculty.name}</h4>
+                      <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-3">{faculty.staffCode}</p>
+                      
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 text-sm">
+                          <BookMarked className="w-4 h-4 text-indigo-600 flex-shrink-0" />
+                          <span className="text-slate-700 font-bold truncate">{faculty.subject || 'General'}</span>
+                        </div>
+                        
+                        <div className="flex items-center gap-2 text-sm">
+                          <Award className="w-4 h-4 text-indigo-600 flex-shrink-0" />
+                          <span className="text-slate-600 truncate">{faculty.qualification || 'N/A'}</span>
+                        </div>
+                        
+                        <div className="flex items-center gap-2 text-sm">
+                          <Briefcase className="w-4 h-4 text-indigo-600 flex-shrink-0" />
+                          <span className="text-slate-600">{faculty.experience || 'N/A'} years</span>
+                        </div>
+                        
+                        {faculty.phone && (
+                          <div className="flex items-center gap-2 text-sm">
+                            <Phone className="w-4 h-4 text-indigo-600 flex-shrink-0" />
+                            <span className="text-slate-600 font-mono">{faculty.phone}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

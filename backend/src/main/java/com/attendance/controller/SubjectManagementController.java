@@ -1,9 +1,12 @@
 package com.attendance.controller;
 
 import com.attendance.dto.ApiResponse;
+import com.attendance.dto.SubjectWithStaffDTO;
 import com.attendance.model.Subject;
+import com.attendance.model.Staff;
 import com.attendance.model.TimetableSession;
 import com.attendance.repository.SubjectRepository;
+import com.attendance.repository.StaffRepository;
 import com.attendance.repository.TimetableSessionRepository;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -11,10 +14,12 @@ import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * Subject Management Controller (Admin Only)
@@ -26,12 +31,15 @@ import java.util.Optional;
 public class SubjectManagementController {
 
     private final SubjectRepository subjectRepository;
+    private final StaffRepository staffRepository;
     private final TimetableSessionRepository timetableSessionRepository;
 
     public SubjectManagementController(
             SubjectRepository subjectRepository,
+            StaffRepository staffRepository,
             TimetableSessionRepository timetableSessionRepository) {
         this.subjectRepository = subjectRepository;
+        this.staffRepository = staffRepository;
         this.timetableSessionRepository = timetableSessionRepository;
     }
 
@@ -63,6 +71,80 @@ public class SubjectManagementController {
         } catch (Exception e) {
             return ResponseEntity.internalServerError()
                     .body(ApiResponse.error("Error fetching subjects: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * GET /api/admin/subjects/with-staff: Fetch only subjects that have staff assigned
+     * Used for timetable management to prevent creating sessions without staff
+     * Returns subjects with staff regardless of semester (staff can teach in any semester)
+     * Example: GET /api/admin/subjects/with-staff?department=Computer Science
+     */
+    @GetMapping("/with-staff")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<List<SubjectWithStaffDTO>>> getSubjectsWithStaff(
+            @RequestParam(required = false) String department,
+            @RequestParam(required = false) Integer semester) {
+        try {
+            List<Subject> subjects;
+            
+            // Get all subjects (or filter by department only)
+            // NOTE: We DON'T filter by semester - staff can teach their subject in any semester
+            if (department != null) {
+                subjects = subjectRepository.findByDepartment(department);
+            } else {
+                subjects = subjectRepository.findAll();
+            }
+            
+            // Filter to only subjects with assigned staff and map to DTO
+            List<SubjectWithStaffDTO> result = subjects.stream()
+                    .map(subject -> {
+                        // Find staff assigned to this subject (check both subject string field and subjects collection)
+                        List<Staff> assignedStaff = staffRepository.findAll().stream()
+                                .filter(staff -> {
+                                    // Check if staff has this subject in the subjects collection
+                                    boolean inCollection = staff.getSubjects() != null && 
+                                                          staff.getSubjects().contains(subject);
+                                    
+                                    // Check if staff has this subject name in the subject string field
+                                    boolean matchesSubjectName = staff.getSubject() != null && 
+                                                                staff.getSubject().equalsIgnoreCase(subject.getSubjectName());
+                                    
+                                    return inCollection || matchesSubjectName;
+                                })
+                                .collect(Collectors.toList());
+                        
+                        if (assignedStaff.isEmpty()) {
+                            return null; // Skip subjects without staff
+                        }
+                        
+                        // Map staff to DTO
+                        List<SubjectWithStaffDTO.StaffInfoDTO> staffDTOs = assignedStaff.stream()
+                                .map(staff -> new SubjectWithStaffDTO.StaffInfoDTO(
+                                        staff.getId(),
+                                        staff.getName(),
+                                        staff.getEmployeeCode(),
+                                        staff.getEmail()
+                                ))
+                                .collect(Collectors.toList());
+                        
+                        return new SubjectWithStaffDTO(
+                                subject.getId(),
+                                subject.getSubjectCode(),
+                                subject.getSubjectName(),
+                                subject.getCredits(),
+                                subject.getDepartment(),
+                                subject.getSemester(),
+                                staffDTOs
+                        );
+                    })
+                    .filter(dto -> dto != null) // Remove nulls (subjects without staff)
+                    .collect(Collectors.toList());
+            
+            return ResponseEntity.ok(ApiResponse.success(result));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError()
+                    .body(ApiResponse.error("Error fetching subjects with staff: " + e.getMessage()));
         }
     }
 

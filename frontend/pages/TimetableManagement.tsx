@@ -276,18 +276,35 @@ const TimetableManagement: React.FC = () => {
     fetchClasses();
   }, [isStaff, selectedYear, selectedSemester, currentUser]);
 
-  // ✨ NEW: Fetch subjects dynamically when semester is selected
+  // ✨ NEW: Fetch subjects with staff assigned when semester is selected
+  // This ensures only subjects that have staff can be used in timetable
   const fetchSemesterSubjects = async (semesterNum: number) => {
     try {
       setLoadingSubjects(true);
       const response = await apiClient.get(
-        `/admin/subjects?department=${encodeURIComponent(selectedDepartment)}&semester=${semesterNum}`
+        `/admin/subjects/with-staff?department=${encodeURIComponent(selectedDepartment)}&semester=${semesterNum}`
       );
       const subjectsData = response.data.data || [];
-      setSemesterSubjects(subjectsData);
-      console.log(`✅ Loaded ${subjectsData.length} subjects for Semester ${semesterNum}`);
+      
+      // Transform SubjectWithStaffDTO to SubjectOption format
+      const transformedSubjects = subjectsData.map((subject: any) => ({
+        id: subject.id,
+        subjectCode: subject.code,
+        subjectName: subject.subjectName,
+        semester: subject.semester,
+        isElective: false, // Not used in this context
+        assignedStaff: subject.assignedStaff // Keep staff info for reference
+      }));
+      
+      setSemesterSubjects(transformedSubjects);
+      console.log(`✅ Loaded ${transformedSubjects.length} subjects with staff for Semester ${semesterNum}`);
+      
+      if (transformedSubjects.length === 0) {
+        console.warn(`⚠️  No subjects with assigned staff found for ${selectedDepartment}, Semester ${semesterNum}`);
+        console.warn('   Please assign staff to subjects in Admin Settings first.');
+      }
     } catch (error) {
-      console.error('Error fetching semester subjects:', error);
+      console.error('Error fetching semester subjects with staff:', error);
       setSemesterSubjects([]);
     } finally {
       setLoadingSubjects(false);
@@ -702,10 +719,26 @@ const TimetableManagement: React.FC = () => {
           </div>
         </div>
         {selectedSemester && (
-          <div className={`px-6 py-4 rounded-2xl border flex items-center gap-3 animate-in zoom-in-95 ${loadingSubjects ? 'bg-blue-50 text-blue-600 border-blue-100' : 'bg-emerald-50 text-emerald-600 border-emerald-100'}`}>
-             <div className={`w-2 h-2 rounded-full ${loadingSubjects ? 'bg-blue-500 animate-pulse' : 'bg-emerald-500'}`}></div>
+          <div className={`px-6 py-4 rounded-2xl border flex items-center gap-3 animate-in zoom-in-95 ${
+            loadingSubjects 
+              ? 'bg-blue-50 text-blue-600 border-blue-100' 
+              : semesterSubjects.length === 0
+                ? 'bg-amber-50 text-amber-600 border-amber-100'
+                : 'bg-emerald-50 text-emerald-600 border-emerald-100'
+          }`}>
+             <div className={`w-2 h-2 rounded-full ${
+               loadingSubjects 
+                 ? 'bg-blue-500 animate-pulse' 
+                 : semesterSubjects.length === 0
+                   ? 'bg-amber-500'
+                   : 'bg-emerald-500'
+             }`}></div>
              <span className="text-[10px] font-black uppercase tracking-widest">
-               {loadingSubjects ? 'Loading subjects...' : `${semesterSubjects.length} subjects loaded`}
+               {loadingSubjects 
+                 ? 'Loading subjects...' 
+                 : semesterSubjects.length === 0
+                   ? 'No subjects with staff'
+                   : `${semesterSubjects.length} subjects available`}
              </span>
           </div>
         )}
@@ -717,6 +750,46 @@ const TimetableManagement: React.FC = () => {
           Manage Subjects
         </button>
       </div>
+      )}
+
+      {/* Show warning if no subjects with staff available */}
+      {!isStaff && selectedSemester && !loadingSubjects && semesterSubjects.length === 0 && (
+        <div className="bg-amber-50 border-2 border-amber-200 rounded-[3rem] p-8 flex items-start gap-4">
+          <div className="bg-amber-500 text-white p-3 rounded-2xl flex-shrink-0">
+            <AlertTriangle className="w-6 h-6" />
+          </div>
+          <div className="flex-1">
+            <h4 className="font-black text-amber-900 text-lg mb-2">No Subjects Available for Timetable</h4>
+            <p className="text-sm text-amber-700 mb-4">
+              No subjects with assigned staff were found for <strong>{selectedDepartment}</strong>, <strong>{selectedSemester}</strong>.
+            </p>
+            <p className="text-sm text-amber-700 mb-4">
+              <strong>To create timetable sessions:</strong>
+            </p>
+            <ol className="list-decimal list-inside text-sm text-amber-700 space-y-2 ml-4">
+              <li>Go to <strong>Admin Settings → Staff Management</strong></li>
+              <li>Create or edit staff members</li>
+              <li>Assign subjects to each staff member</li>
+              <li>Return here to create timetable sessions</li>
+            </ol>
+            <div className="mt-4 flex gap-3">
+              <Link 
+                to="/admin/settings" 
+                className="px-6 py-3 bg-amber-600 text-white rounded-xl font-bold text-xs hover:bg-amber-700 transition-all flex items-center gap-2"
+              >
+                <Users className="w-4 h-4" />
+                Go to Staff Management
+              </Link>
+              <button
+                onClick={() => setShowSubjectModal(true)}
+                className="px-6 py-3 bg-white border border-amber-300 text-amber-700 rounded-xl font-bold text-xs hover:bg-amber-50 transition-all flex items-center gap-2"
+              >
+                <Database className="w-4 h-4" />
+                Manage Subjects
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* 3. THE MASTER VIEW */}
@@ -805,7 +878,11 @@ const TimetableManagement: React.FC = () => {
                                 `}
                               >
                                 <option value="Select Subject" className="text-slate-400 bg-white font-bold">
-                                  {selectedSemester ? `Select Subject (${availableSubjects.length} available)` : 'Select Semester First'}
+                                  {!selectedSemester 
+                                    ? 'Select Semester First' 
+                                    : availableSubjects.length === 0 
+                                      ? 'No subjects with staff assigned' 
+                                      : `Select Subject (${availableSubjects.length} available)`}
                                 </option>
                                 {availableSubjects.map(s => (
                                   <option key={s} value={s} className="text-slate-900 font-bold bg-white py-4">{s}</option>

@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.attendance.dto.StudentDTO;
+import com.attendance.dto.QuickAttendanceStudentDTO;
 import com.attendance.exception.ResourceNotFoundException;
 import com.attendance.model.Classes;
 import com.attendance.model.Student;
@@ -42,6 +43,9 @@ public class StudentService {
 	}
 
 	public StudentDTO saveDTO(StudentDTO studentDTO) {
+		// Normalize section: Convert numeric sections (1-8) to letter format (A-H)
+		studentDTO.setSection(normalizeSection(studentDTO.getSection()));
+		
 		// Prevent duplicate roll numbers
 		repo.findByRollNo(studentDTO.getRollNo()).ifPresent(s -> {
 			throw new IllegalArgumentException("Roll number already exists");
@@ -124,10 +128,14 @@ public class StudentService {
 		Student existing = repo.findById(id)
 				.orElseThrow(() -> new ResourceNotFoundException("Student", "id", id));
 
+		// Normalize section: Convert numeric sections (1-8) to letter format (A-H)
+		studentDTO.setSection(normalizeSection(studentDTO.getSection()));
+
 		existing.setRollNo(studentDTO.getRollNo());
 		existing.setName(studentDTO.getName());
 		existing.setDepartment(studentDTO.getDepartment());
 		existing.setSemester(studentDTO.getSemester());
+		existing.setSection(studentDTO.getSection());
 
 		Student updated = repo.save(existing);
 		return toDTO(updated);
@@ -182,5 +190,55 @@ public class StudentService {
 		}
 		
 		return student;
+	}
+
+	/**
+	 * Convert Student to QuickAttendanceStudentDTO
+	 * Maps field names to match frontend expectations:
+	 * - name -> studentName
+	 * - rollNo -> rollNumber
+	 * - id -> studentId
+	 */
+	public QuickAttendanceStudentDTO toQuickAttendanceDTO(Student student) {
+		return new QuickAttendanceStudentDTO(
+			student.getId(),
+			student.getName(),
+			student.getRollNo(),
+			student.getDepartment(),
+			student.getSemester(),
+			student.getSection()
+		);
+	}
+
+	/**
+	 * Normalize section values to letter format (A-H)
+	 * Converts numeric sections (1-8) to letters (A-H)
+	 * Examples: "1" -> "A", "6" -> "F", "A" -> "A"
+	 */
+	private String normalizeSection(String section) {
+		if (section == null || section.trim().isEmpty()) {
+			return "A"; // Default to section A
+		}
+		
+		section = section.trim().toUpperCase();
+		
+		// If already a letter (A-H), return as-is
+		if (section.matches("^[A-H]$")) {
+			return section;
+		}
+		
+		// Convert numbers 1-8 to letters A-H
+		try {
+			int sectionNum = Integer.parseInt(section);
+			if (sectionNum >= 1 && sectionNum <= 8) {
+				return String.valueOf((char) ('A' + sectionNum - 1));
+			}
+		} catch (NumberFormatException e) {
+			// Not a number, continue
+		}
+		
+		// If invalid format, log warning and default to A
+		System.err.println("⚠️ Warning: Invalid section format '" + section + "', defaulting to 'A'");
+		return "A";
 	}
 }

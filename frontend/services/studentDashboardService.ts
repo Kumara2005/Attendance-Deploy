@@ -23,6 +23,17 @@ export interface SubjectAttendance {
   percentage: number;
 }
 
+export interface Faculty {
+  id: string;
+  name: string;
+  staffCode: string;
+  department: string;
+  subject: string;
+  qualification: string;
+  experience: string;
+  phone: string;
+}
+
 export interface TimetableSlot {
   startTime: string;
   endTime: string;
@@ -44,36 +55,55 @@ export interface StudentDashboard {
 
 /**
  * Fetch complete student dashboard
- * GET /student/dashboard
+ * GET /api/student/dashboard
  */
 export const getStudentDashboard = async (): Promise<StudentDashboard> => {
+  console.log('🔍 Fetching student dashboard...');
   const response = await apiClient.get<{ data: StudentDashboard }>('/student/dashboard');
+  console.log('✅ Dashboard data received:', response.data.data);
   return response.data.data;
 };
 
 /**
  * Fetch only attendance data
- * GET /student/dashboard/attendance
+ * GET /api/student/dashboard/attendance
  */
 export const getStudentAttendance = async (): Promise<SubjectAttendance[]> => {
+  console.log('🔍 Fetching student attendance...');
   const response = await apiClient.get<{ data: SubjectAttendance[] }>('/student/dashboard/attendance');
+  console.log('✅ Attendance data received:', response.data.data);
   return response.data.data;
 };
 
 /**
  * Fetch weekly timetable
- * GET /student/dashboard/timetable
+ * GET /api/student/dashboard/timetable
  */
 export const getStudentTimetable = async (): Promise<WeeklyTimetable> => {
+  console.log('🔍 Fetching student timetable...');
   const response = await apiClient.get<{ data: WeeklyTimetable }>('/student/dashboard/timetable');
+  console.log('✅ Timetable data received:', response.data.data);
   return response.data.data;
 };
 
 /**
  * Fetch today's timetable only
- * GET /student/dashboard/timetable/today
+ * GET /api/student/dashboard/timetable/today
  */
 export const getTodayTimetable = async (): Promise<TimetableSlot[]> => {
+  console.log('🔍 Fetching today\'s timetable...');
   const response = await apiClient.get<{ data: TimetableSlot[] }>('/student/dashboard/timetable/today');
+  console.log('✅ Today\'s timetable received:', response.data.data);
+  return response.data.data;
+};
+
+/**
+ * Fetch department faculty
+ * GET /api/student/dashboard/faculty
+ */
+export const getDepartmentFaculty = async (): Promise<Faculty[]> => {
+  console.log('👥 Fetching department faculty...');
+  const response = await apiClient.get<{ data: Faculty[] }>('/student/dashboard/faculty');
+  console.log('✅ Faculty data received:', response.data.data);
   return response.data.data;
 };

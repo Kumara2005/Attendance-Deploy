@@ -1,30 +1,42 @@
 package com.attendance.dto;
 
+import com.fasterxml.jackson.annotation.JsonAnyGetter;
+import com.fasterxml.jackson.annotation.JsonAnySetter;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 /**
  * DTO for Weekly Timetable
  * Maps to: StudentPortal.tsx -> MASTER_TIMETABLE
+ * Uses @JsonAnyGetter to serialize the map directly without wrapping in "schedule" field
  */
 public class WeeklyTimetableDTO {
     
     private Map<String, List<TimetableSlotDTO>> schedule;
     
     // Constructors
-    public WeeklyTimetableDTO() {}
+    public WeeklyTimetableDTO() {
+        this.schedule = new HashMap<>();
+    }
     
     public WeeklyTimetableDTO(Map<String, List<TimetableSlotDTO>> schedule) {
         this.schedule = schedule;
     }
     
-    // Getters and Setters
+    // This annotation makes Jackson serialize the map's entries as top-level properties
+    // So instead of {"schedule": {"Monday": [...]}} we get {"Monday": [...]}
+    @JsonAnyGetter
     public Map<String, List<TimetableSlotDTO>> getSchedule() {
         return schedule;
     }
     
-    public void setSchedule(Map<String, List<TimetableSlotDTO>> schedule) {
-        this.schedule = schedule;
+    @JsonAnySetter
+    public void setSchedule(String day, List<TimetableSlotDTO> slots) {
+        if (this.schedule == null) {
+            this.schedule = new HashMap<>();
+        }
+        this.schedule.put(day, slots);
     }
     
     /**

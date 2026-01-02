@@ -104,9 +104,14 @@ public class StaffDashboardService {
                     // Get student count for this department and semester
                     Long studentCount = studentRepository.countByDepartmentAndSemester(department, semester);
                     
-                    // Get average attendance for this class
-                    Double avgAttendance = attendanceRepository
-                        .calculateAverageAttendanceByDepartmentAndSemester(department, semester);
+                    // Get average attendance for this class - using simple fallback to avoid complex SQL errors
+                    Double avgAttendance = null;
+                    try {
+                        avgAttendance = attendanceRepository.getSimpleAverageAttendance(department, semester);
+                    } catch (Exception e) {
+                        System.err.println("⚠️  Could not calculate attendance for " + department + " Sem " + semester + ": " + e.getMessage());
+                        avgAttendance = 0.0;
+                    }
                     
                     return new AssignedClassDTO(
                         year,
@@ -148,24 +153,69 @@ public class StaffDashboardService {
             return todaySessions.stream()
                 .sorted(Comparator.comparing(TimetableSession::getStartTime))
                 .map(session -> {
-                    // Check if attendance is marked for this session
-                    Boolean attendanceMarked = checkAttendanceMarked(session, LocalDate.now());
-                    
-                    Long classId = session.getClassEntity() != null ? session.getClassEntity().getId() : null;
-                    
-                    return new TodaySessionDTO(
-                        session.getStartTime().toString(),
-                        session.getEndTime().toString(),
-                        session.getSubjectName(),
-                        String.format("%s %s", session.getYear(), session.getClassName()),
-                        session.getLocation(),
-                        attendanceMarked,
-                        session.getId(),
-                        classId,
-                        session.getDepartment(),
-                        session.getSemester(),
-                        session.getSection()
-                    );
+                    try {
+                        // Check if attendance is marked for this session
+                        Boolean attendanceMarked = checkAttendanceMarked(session, LocalDate.now());
+                        
+                        Long classId = session.getClassEntity() != null ? session.getClassEntity().getId() : null;
+                        
+                        // Safe extraction of subject name - with detailed fallbacks
+                        String subjectName = "Unknown Subject";
+                        try {
+                            if (session.getSubject() != null && session.getSubject().getSubjectName() != null) {
+                                subjectName = session.getSubject().getSubjectName();
+                            } else if (staff.getSubject() != null && !staff.getSubject().isBlank()) {
+                                subjectName = staff.getSubject();
+                            }
+                        } catch (Exception subjectError) {
+                            System.err.println("⚠️  Error getting subject for session " + session.getId() + ": " + subjectError.getMessage());
+                            if (staff.getSubject() != null && !staff.getSubject().isBlank()) {
+                                subjectName = staff.getSubject();
+                            }
+                        }
+                        
+                        // Safe extraction of class name and year
+                        String className = "B.Sc " + session.getDepartment();
+                        String year = "Year " + ((session.getSemester() + 1) / 2);
+                        
+                        // Safe extraction of location
+                        String location = session.getRoomNumber() != null ? session.getRoomNumber() : "TBD";
+                        
+                        System.out.println("✅ Session ID=" + session.getId() + ": " + subjectName + " at " + location + 
+                                         " on " + session.getDayOfWeek() + " " + session.getStartTime());
+                        
+                        return new TodaySessionDTO(
+                            session.getStartTime().toString(),
+                            session.getEndTime().toString(),
+                            subjectName,
+                            String.format("%s %s", year, className),
+                            location,
+                            attendanceMarked,
+                            session.getId(),
+                            classId,
+                            session.getDepartment(),
+                            session.getSemester(),
+                            session.getSection()
+                        );
+                    } catch (Exception sessionError) {
+                        System.err.println("⚠️  Error mapping session " + session.getId() + ": " + sessionError.getMessage());
+                        sessionError.printStackTrace();
+                        
+                        // Return a placeholder with whatever data we have
+                        return new TodaySessionDTO(
+                            session.getStartTime() != null ? session.getStartTime().toString() : "N/A",
+                            session.getEndTime() != null ? session.getEndTime().toString() : "N/A",
+                            staff.getSubject() != null ? staff.getSubject() : "Unknown",
+                            "B.Sc " + (session.getDepartment() != null ? session.getDepartment() : "Unknown"),
+                            session.getRoomNumber() != null ? session.getRoomNumber() : "TBD",
+                            false,
+                            session.getId(),
+                            null,
+                            session.getDepartment(),
+                            session.getSemester(),
+                            session.getSection()
+                        );
+                    }
                 })
                 .toArray(TodaySessionDTO[]::new);
         } catch (Exception e) {

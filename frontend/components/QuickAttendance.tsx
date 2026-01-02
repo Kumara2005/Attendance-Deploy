@@ -44,16 +44,33 @@ export const QuickAttendance: React.FC<QuickAttendanceProps> = ({
       setLoading(true);
       try {
         let url: string;
-        if (classId) {
+        let params: Record<string, any> = {};
+        
+        if (classId && classId > 0) {
           // Use classId if available (PREFERRED)
-          url = `/students?classId=${classId}`;
+          params.classId = classId;
         } else {
           // Fallback to department+semester+section
-          url = `/students?department=${encodeURIComponent(department)}&semester=${semester}&section=${section}`;
+          params.department = department;
+          params.semester = semester;
+          params.section = section;
         }
         
+        // Build query string
+        const queryString = new URLSearchParams(
+          Object.entries(params).reduce((acc, [key, value]) => {
+            acc[key] = String(value);
+            return acc;
+          }, {} as Record<string, string>)
+        ).toString();
+        
+        url = `/students?${queryString}`;
+        
+        console.log('📚 Fetching students from:', url);
         const response = await apiClient.get(url);
         const studentList: AttendanceRecord[] = response.data.data || [];
+        
+        console.log('✅ Fetched students:', studentList.length);
         setStudents(studentList);
 
         // Initialize all as PRESENT
@@ -63,7 +80,8 @@ export const QuickAttendance: React.FC<QuickAttendanceProps> = ({
         });
         setSelectedStatuses(initialStatuses);
       } catch (error) {
-        console.error('Error fetching students:', error);
+        console.error('❌ Error fetching students:', error);
+        setStudents([]);
       } finally {
         setLoading(false);
       }
@@ -89,19 +107,18 @@ export const QuickAttendance: React.FC<QuickAttendanceProps> = ({
         const payload = {
           studentId: student.studentId,
           timetableSessionId: sessionId,
-          date: new Date().toISOString().split('T')[0],
-          status,
-          subjectName,
-          department,
-          semester,
-          section,
+          date: new Date().toISOString().split('T')[0], // YYYY-MM-DD format
+          status, // String: 'PRESENT', 'ABSENT', or 'OD'
         };
 
         try {
-          await apiClient.post('/attendance/session', payload);
+          console.log('📤 Posting attendance:', payload);
+          const response = await apiClient.post('/attendance/session', payload);
+          console.log('✅ Attendance saved:', response.data);
           savedCount++;
-        } catch (error) {
-          console.error('Error saving attendance for student:', student.studentId);
+        } catch (error: any) {
+          console.error('❌ Error saving attendance for student:', student.studentId);
+          console.error('   Error details:', error.response?.data || error.message);
         }
       }
 

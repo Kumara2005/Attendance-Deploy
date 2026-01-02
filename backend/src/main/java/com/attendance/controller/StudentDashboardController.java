@@ -76,4 +76,16 @@ public class StudentDashboardController {
         var todaySchedule = dashboardService.getTodayTimetable(userId);
         return ResponseEntity.ok(ApiResponse.success(todaySchedule));
     }
+
+    /**
+     * GET /api/student/dashboard/faculty
+     * Returns faculty list for the student's department
+     */
+    @GetMapping("/faculty")
+    public ResponseEntity<ApiResponse<com.attendance.dto.FacultyDTO[]>> getFaculty(
+            Authentication authentication) {
+        String userId = authentication.getName();
+        var faculty = dashboardService.getDepartmentFaculty(userId);
+        return ResponseEntity.ok(ApiResponse.success(faculty));
+    }
 }

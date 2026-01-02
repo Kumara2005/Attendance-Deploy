@@ -45,6 +45,9 @@ public class TimetableSession {
 	@Column(name = "room_number", length = 20)
 	private String roomNumber;
 
+	@Column(name = "session_number", nullable = false)
+	private Integer sessionNumber;
+
 	@Column(nullable = false)
 	private boolean active = true;
 
@@ -173,6 +176,14 @@ public class TimetableSession {
 
 	public void setRoomNumber(String roomNumber) {
 		this.roomNumber = roomNumber;
+	}
+
+	public Integer getSessionNumber() {
+		return sessionNumber;
+	}
+
+	public void setSessionNumber(Integer sessionNumber) {
+		this.sessionNumber = sessionNumber;
 	}
 
 	public boolean isActive() {

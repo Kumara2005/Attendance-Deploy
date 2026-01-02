@@ -37,7 +37,20 @@ const Reports: React.FC = () => {
       let data: AttendanceReportDTO[] = [];
       const yearNum = selectedYear ? parseInt(selectedYear.replace('Year ', '')) : undefined;
       const userData = authService.getCurrentUser();
-      const department = currentUser?.department;
+      
+      // Get department from current user
+      const department = currentUser?.department || userData?.department;
+      
+      console.log('📊 Fetching report with filters:', {
+        reportType,
+        department,
+        yearNum,
+        targetDate,
+        fromDate,
+        toDate,
+        selectedSemester,
+        isStudent
+      });
       
       if (isStudent) {
         // For student, fetch their personal report
@@ -51,22 +64,30 @@ const Reports: React.FC = () => {
           data = studentReport ? [studentReport] : [];
         }
       } else {
-        // For staff/admin
+        // For staff/admin - fetch based on their department
         if (reportType === 'Daily') {
+          console.log('📅 Fetching daily report for date:', targetDate);
           data = await reportService.getDailyReport(targetDate, department, yearNum);
         } else if (reportType === 'Monthly') {
           if (fromDate && toDate) {
+            console.log('📆 Fetching periodic report from', fromDate, 'to', toDate);
             data = await reportService.getPeriodicReport(fromDate, toDate, department, yearNum);
+          } else {
+            setError('Please select both From and To dates for periodic report');
+            setLoading(false);
+            return;
           }
         } else if (reportType === 'Semester') {
           const semesterNum = selectedSemester ? parseInt(selectedSemester) : undefined;
+          console.log('📚 Fetching semester report for semester:', semesterNum);
           data = await reportService.getSemesterReport(department, yearNum, semesterNum);
         }
       }
       
+      console.log('✅ Report data fetched:', data.length, 'records');
       setReportData(data);
     } catch (err: any) {
-      console.error('Error fetching report:', err);
+      console.error('❌ Error fetching report:', err);
       setError(err.response?.data?.message || 'Failed to load report data');
       setReportData([]);
     } finally {
@@ -74,9 +95,10 @@ const Reports: React.FC = () => {
     }
   };
 
-  // Auto-fetch semester report on mount for staff
+  // Auto-fetch Daily report on mount for staff with today's date
   useEffect(() => {
-    if (!isStudent) {
+    if (!isStudent && reportType === 'Daily') {
+      console.log('🔄 Auto-fetching Daily report on component mount...');
       fetchReportData();
     }
   }, []);

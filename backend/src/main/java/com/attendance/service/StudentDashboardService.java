@@ -5,7 +5,9 @@ import com.attendance.dto.StudentDashboardDTO;
 import com.attendance.dto.StudentDashboardDTO.SubjectAttendanceDTO;
 import com.attendance.dto.WeeklyTimetableDTO;
 import com.attendance.dto.WeeklyTimetableDTO.TimetableSlotDTO;
+import com.attendance.dto.FacultyDTO;
 import com.attendance.model.Student;
+import com.attendance.model.Staff;
 import com.attendance.model.TimetableSession;
 import com.attendance.model.User;
 import com.attendance.repository.*;
@@ -28,17 +30,20 @@ public class StudentDashboardService {
     private final TimetableSessionRepository timetableRepository;
     private final SubjectRepository subjectRepository;
     private final UserRepository userRepository;
+    private final StaffRepository staffRepository;
 
     public StudentDashboardService(StudentRepository studentRepository,
                                   SessionAttendanceRepository attendanceRepository,
                                   TimetableSessionRepository timetableRepository,
                                   SubjectRepository subjectRepository,
-                                  UserRepository userRepository) {
+                                  UserRepository userRepository,
+                                  StaffRepository staffRepository) {
         this.studentRepository = studentRepository;
         this.attendanceRepository = attendanceRepository;
         this.timetableRepository = timetableRepository;
         this.subjectRepository = subjectRepository;
         this.userRepository = userRepository;
+        this.staffRepository = staffRepository;
     }
 
     /**
@@ -71,15 +76,21 @@ public class StudentDashboardService {
     public SubjectAttendanceDTO[] getStudentAttendance(String username) {
         Student student = findStudentByUsername(username);
         
+        System.out.println("🔍 Fetching attendance for student: " + student.getName() + " (ID: " + student.getId() + ")");
+        
         // Query attendance records grouped by subject
         List<Object[]> results = attendanceRepository.findAttendanceByStudentGroupedBySubject(student.getId());
         
-        return results.stream()
+        System.out.println("📊 Found " + results.size() + " subjects with attendance data");
+        
+        SubjectAttendanceDTO[] attendanceArray = results.stream()
             .map(row -> {
                 String subjectName = (String) row[0];
                 Long attended = (Long) row[1];
                 Long total = (Long) row[2];
                 Double percentage = total > 0 ? (attended * 100.0 / total) : 0.0;
+                
+                System.out.println("   📚 " + subjectName + ": " + attended + "/" + total + " = " + percentage + "%");
                 
                 return new SubjectAttendanceDTO(
                     subjectName,
@@ -89,6 +100,9 @@ public class StudentDashboardService {
                 );
             })
             .toArray(SubjectAttendanceDTO[]::new);
+            
+        System.out.println("✅ Returning " + attendanceArray.length + " subject attendance records");
+        return attendanceArray;
     }
 
     /**
@@ -98,14 +112,20 @@ public class StudentDashboardService {
     public WeeklyTimetableDTO getStudentTimetable(String username) {
         Student student = findStudentByUsername(username);
         
-        System.out.println("DEBUG: Fetching weekly timetable for: " + student.getName());
-        System.out.println("DEBUG: Department: " + student.getDepartment() + ", Semester: " + student.getSemester());
+        System.out.println("📅 Fetching weekly timetable for: " + student.getName());
+        System.out.println("   Department: " + student.getDepartment());
+        System.out.println("   Semester: " + student.getSemester());
+        System.out.println("   Section: " + student.getSection());
         
-        // Get all timetable sessions for this student's department and semester
+        // Get all timetable sessions for this student's department, semester, and section
         List<TimetableSession> sessions = timetableRepository
-            .findByDepartmentAndSemesterAndActiveTrue(student.getDepartment(), student.getSemester());
+            .findByDepartmentAndSemesterAndSectionAndActiveTrue(
+                student.getDepartment(), 
+                student.getSemester(),
+                student.getSection()
+            );
         
-        System.out.println("DEBUG: Found " + sessions.size() + " total sessions");
+        System.out.println("   ✅ Found " + sessions.size() + " total sessions");
         
         // Group by day of week
         Map<String, List<TimetableSlotDTO>> schedule = new LinkedHashMap<>();
@@ -119,17 +139,23 @@ public class StudentDashboardService {
         // Populate schedule
         for (TimetableSession session : sessions) {
             String day = session.getDayOfWeek();
-            System.out.println("DEBUG: Session day: " + day + ", Subject: " + session.getSubjectName());
+            String subjectName = session.getSubjectName();
+            String facultyName = session.getFacultyName();
+            String location = session.getLocation();
+            
+            System.out.println("   📌 " + day + ": " + subjectName + " by " + facultyName + " at " + location);
+            
             // Ensure the day exists in schedule (handle case variations)
             if (!schedule.containsKey(day)) {
                 schedule.put(day, new ArrayList<>());
             }
+            
             TimetableSlotDTO slot = new TimetableSlotDTO(
                 session.getStartTime().toString(),
                 session.getEndTime().toString(),
-                session.getSubjectName(),
-                session.getFacultyName() != null ? session.getFacultyName() : "-",
-                session.getLocation() != null ? session.getLocation() : "-"
+                subjectName != null ? subjectName : "-",
+                facultyName != null ? facultyName : "-",
+                location != null ? location : "-"
             );
             schedule.get(day).add(slot);
         }
@@ -152,28 +178,42 @@ public class StudentDashboardService {
         String today = LocalDate.now().getDayOfWeek()
             .getDisplayName(TextStyle.FULL, Locale.ENGLISH);
         
-        System.out.println("DEBUG: Fetching timetable for student: " + student.getName());
-        System.out.println("DEBUG: Department: " + student.getDepartment());
-        System.out.println("DEBUG: Semester: " + student.getSemester());
-        System.out.println("DEBUG: Today: " + today);
+        System.out.println("📅 Fetching today's timetable for student: " + student.getName());
+        System.out.println("   Department: " + student.getDepartment());
+        System.out.println("   Semester: " + student.getSemester());
+        System.out.println("   Section: " + student.getSection());
+        System.out.println("   Today: " + today);
         
-        // Use case-insensitive query to handle TUESDAY vs Tuesday
+        // Use case-insensitive query with section filter
         List<TimetableSession> todaySessions = timetableRepository
-            .findByDepartmentAndSemesterAndDayOfWeekIgnoreCaseAndActiveTrue(
-                student.getDepartment(), student.getSemester(), today);
+            .findByDepartmentAndSemesterAndSectionAndDayOfWeekIgnoreCaseAndActiveTrue(
+                student.getDepartment(), 
+                student.getSemester(),
+                student.getSection(),
+                today);
         
-        System.out.println("DEBUG: Found " + todaySessions.size() + " sessions");
+        System.out.println("   ✅ Found " + todaySessions.size() + " sessions for today");
         
-        return todaySessions.stream()
+        TimetableSlotDTO[] slots = todaySessions.stream()
             .sorted(Comparator.comparing(TimetableSession::getStartTime))
-            .map(session -> new TimetableSlotDTO(
-                session.getStartTime().toString(),
-                session.getEndTime().toString(),
-                session.getSubjectName(),
-                session.getFacultyName() != null ? session.getFacultyName() : "-",
-                session.getLocation() != null ? session.getLocation() : "-"
-            ))
+            .map(session -> {
+                String subjectName = session.getSubjectName();
+                String facultyName = session.getFacultyName();
+                String location = session.getLocation();
+                
+                System.out.println("      📌 " + session.getStartTime() + ": " + subjectName + " by " + facultyName);
+                
+                return new TimetableSlotDTO(
+                    session.getStartTime().toString(),
+                    session.getEndTime().toString(),
+                    subjectName != null ? subjectName : "-",
+                    facultyName != null ? facultyName : "-",
+                    location != null ? location : "-"
+                );
+            })
             .toArray(TimetableSlotDTO[]::new);
+            
+        return slots;
     }
 
     // ========== HELPER METHODS ==========
@@ -205,5 +245,32 @@ public class StudentDashboardService {
             .sum();
         
         return Math.round((totalPercentage / subjects.length) * 100.0) / 100.0;
+    }
+
+    /**
+     * Get faculty list for student's department
+     */
+    public FacultyDTO[] getDepartmentFaculty(String username) {
+        Student student = findStudentByUsername(username);
+        
+        System.out.println("👥 Fetching faculty for department: " + student.getDepartment());
+        
+        // Get all active staff in the student's department
+        List<Staff> staffList = staffRepository.findByDepartmentAndActive(student.getDepartment(), true);
+        
+        System.out.println("✅ Found " + staffList.size() + " faculty members");
+        
+        return staffList.stream()
+            .map(staff -> new FacultyDTO(
+                String.valueOf(staff.getId()),
+                staff.getName(),
+                staff.getStaffCode(),
+                staff.getDepartment(),
+                staff.getSubject(),
+                staff.getQualification(),
+                staff.getExperience() != null ? staff.getExperience().toString() : "0",
+                staff.getPhone()
+            ))
+            .toArray(FacultyDTO[]::new);
     }
 }
