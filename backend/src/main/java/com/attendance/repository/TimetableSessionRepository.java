@@ -43,15 +43,24 @@ public interface TimetableSessionRepository
     
     List<TimetableSession> findByStaffAndDayOfWeekAndActiveTrue(Staff staff, String dayOfWeek);
     
-    List<TimetableSession> findByStaffIdAndActiveTrue(Long staffId);
+    // Find all active sessions by staff ID with eager loading of subject and staff
+    @Query("SELECT ts FROM TimetableSession ts " +
+           "LEFT JOIN FETCH ts.subject " +
+           "LEFT JOIN FETCH ts.staff " +
+           "WHERE ts.staff.id = :staffId AND ts.active = true")
+    List<TimetableSession> findByStaffIdAndActiveTrue(@Param("staffId") Long staffId);
     
     // Find sessions by subject (for dependency checking)
     List<TimetableSession> findBySubjectAndActiveTrue(com.attendance.model.Subject subject);
     
-    // Find today's sessions for a staff member using native column instead of relationship traversal
-    @Query(value = "SELECT ts.* FROM timetable_session ts WHERE ts.staff_id = :staffId " +
-           "AND LOWER(ts.day_of_week) = LOWER(:dayOfWeek) AND ts.active = true ORDER BY ts.start_time", 
-           nativeQuery = true)
+    // Find today's sessions for a staff member with eager loading of subject and staff
+    @Query("SELECT ts FROM TimetableSession ts " +
+           "LEFT JOIN FETCH ts.subject " +
+           "LEFT JOIN FETCH ts.staff " +
+           "WHERE ts.staff.id = :staffId " +
+           "AND LOWER(ts.dayOfWeek) = LOWER(:dayOfWeek) " +
+           "AND ts.active = true " +
+           "ORDER BY ts.startTime")
     List<TimetableSession> findByFacultyIdAndDayOfWeekAndIsActiveTrue(
             @Param("staffId") Long staffId, @Param("dayOfWeek") String dayOfWeek);
     
