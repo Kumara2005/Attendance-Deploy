@@ -12,6 +12,11 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.Arrays;
 
 @Configuration
 @EnableWebSecurity
@@ -28,7 +33,8 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http)
             throws Exception {
 
-        http.csrf(csrf -> csrf.disable())
+        http.cors(cors -> cors.configurationSource(corsConfigurationSource()))
+            .csrf(csrf -> csrf.disable())
             .sessionManagement(session -> session
                 .sessionCreationPolicy(org.springframework.security.config.http.SessionCreationPolicy.STATELESS)
             )
@@ -50,6 +56,31 @@ public class SecurityConfig {
             );
 
         return http.build();
+    }
+
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        // Allow frontend origins
+        configuration.setAllowedOrigins(Arrays.asList(
+            "https://attendence-management-system-dun.vercel.app",
+            "http://localhost:3000",
+            "http://localhost:5173",
+            "http://127.0.0.1:3000",
+            "http://127.0.0.1:5173"
+        ));
+        // Allow all HTTP methods
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
+        // Allow all headers
+        configuration.setAllowedHeaders(Arrays.asList("*"));
+        // Allow credentials
+        configuration.setAllowCredentials(true);
+        // Max age of preflight cache
+        configuration.setMaxAge(3600L);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
     }
 
     @Bean
