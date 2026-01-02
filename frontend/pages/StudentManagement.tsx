@@ -115,7 +115,10 @@ const StudentManagement: React.FC<StudentManagementProps> = ({ userRole }) => {
   }, [students, searchTerm, deptContext, isAdmin, yearFilter]);
 
   const filteredStaff = useMemo(() => {
-    return staff.filter(s => {
+    // Ensure staff is always an array
+    const staffArray = Array.isArray(staff) ? staff : [];
+    
+    return staffArray.filter(s => {
       const matchesSearch = s.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
                            s.email?.toLowerCase().includes(searchTerm.toLowerCase());
       

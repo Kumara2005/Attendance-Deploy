@@ -30,6 +30,7 @@ public class DatabaseInitializer implements CommandLineRunner {
         logger.info("🔧 Starting Database Initialization...");
         
         try {
+            applyStudentClassIdMigration();
             applyAttendanceConstraintsMigration();
             mergeDuplicateSubjects();
             assignExistingStaffToTimetableSessions();
@@ -38,6 +39,53 @@ public class DatabaseInitializer implements CommandLineRunner {
             logger.error("❌ Error during database initialization: " + e.getMessage(), e);
             // Don't throw exception - allow app to start even if migration fails
             // This allows for manual fixes if needed
+        }
+    }
+
+    /**
+     * Apply migration: Add class_id column to student table
+     * This enables proper FK relationship between students and classes
+     */
+    private void applyStudentClassIdMigration() {
+        logger.info("📝 Applying student.class_id migration...");
+        
+        try {
+            // Check if column already exists
+            String checkColumnSql = "SELECT COUNT(*) FROM information_schema.COLUMNS " +
+                                   "WHERE TABLE_SCHEMA = DATABASE() " +
+                                   "AND TABLE_NAME = 'student' " +
+                                   "AND COLUMN_NAME = 'class_id'";
+            
+            Integer columnExists = jdbcTemplate.queryForObject(checkColumnSql, Integer.class);
+            
+            if (columnExists != null && columnExists > 0) {
+                logger.info("  ✅ Column class_id already exists in student table");
+                return;
+            }
+            
+            // Add class_id column
+            logger.info("  Step 1: Adding class_id column to student table...");
+            jdbcTemplate.execute("ALTER TABLE student ADD COLUMN class_id BIGINT");
+            logger.info("  ✅ Column class_id added");
+            
+            // Add foreign key constraint
+            logger.info("  Step 2: Adding foreign key constraint...");
+            jdbcTemplate.execute(
+                "ALTER TABLE student ADD CONSTRAINT fk_student_class " +
+                "FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE SET NULL"
+            );
+            logger.info("  ✅ Foreign key constraint added");
+            
+            // Add index for performance
+            logger.info("  Step 3: Adding index on class_id...");
+            jdbcTemplate.execute("ALTER TABLE student ADD INDEX idx_class_id (class_id)");
+            logger.info("  ✅ Index added");
+            
+            logger.info("✅ Student class_id migration completed successfully");
+            
+        } catch (Exception e) {
+            logger.error("❌ Error applying student.class_id migration: " + e.getMessage(), e);
+            // Don't rethrow - allow app to continue
         }
     }
 
