@@ -10,15 +10,16 @@ export default defineConfig(({ mode }) => {
         host: '0.0.0.0',
         proxy: {
           '/api': {
-            target: 'https://attendance-management-g2g6.onrender.com',
+            target: 'http://localhost:8080',
             changeOrigin: true,
             rewrite: (path) => path,
+            secure: false
           }
         }
       },
       plugins: [react()],
       define: {
-        'import.meta.env.VITE_API_BASE_URL': JSON.stringify(env.VITE_API_BASE_URL || 'https://attendance-management-g2g6.onrender.com/api')
+        'import.meta.env.VITE_API_BASE_URL': JSON.stringify(env.VITE_API_BASE_URL || 'http://localhost:8080/api')
       },
       resolve: {
         alias: {

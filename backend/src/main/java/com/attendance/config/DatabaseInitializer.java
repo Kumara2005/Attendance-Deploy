@@ -31,6 +31,7 @@ public class DatabaseInitializer implements CommandLineRunner {
         
         try {
             applyStudentClassIdMigration();
+            populateStudentClassIds();
             applyAttendanceConstraintsMigration();
             mergeDuplicateSubjects();
             assignExistingStaffToTimetableSessions();
@@ -85,6 +86,41 @@ public class DatabaseInitializer implements CommandLineRunner {
             
         } catch (Exception e) {
             logger.error("❌ Error applying student.class_id migration: " + e.getMessage(), e);
+            // Don't rethrow - allow app to continue
+        }
+    }
+
+    /**
+     * Populate student.class_id by matching students to classes based on dept+semester+section
+     */
+    private void populateStudentClassIds() {
+        logger.info("📝 Populating student.class_id from dept+semester+section...");
+        
+        try {
+            // Update students to match with classes table
+            String updateSql = "UPDATE student s " +
+                "INNER JOIN classes c ON s.department = c.department " +
+                "  AND s.semester = c.semester " +
+                "  AND s.section = c.section " +
+                "SET s.class_id = c.id " +
+                "WHERE s.class_id IS NULL AND c.active = true";
+            
+            int updatedCount = jdbcTemplate.update(updateSql);
+            logger.info("  ✅ Updated " + updatedCount + " students with class_id values");
+            
+            // Check for any students not matched
+            String unmatchedCountSql = "SELECT COUNT(*) FROM student WHERE class_id IS NULL AND active = true";
+            Integer unmatchedCount = jdbcTemplate.queryForObject(unmatchedCountSql, Integer.class);
+            
+            if (unmatchedCount != null && unmatchedCount > 0) {
+                logger.warn("  ⚠️  " + unmatchedCount + " active students could not be matched to a class");
+                logger.warn("      These students may have department/semester/section combinations that don't exist in classes table");
+            } else {
+                logger.info("  ✅ All active students have been assigned to classes");
+            }
+            
+        } catch (Exception e) {
+            logger.error("❌ Error populating student.class_id: " + e.getMessage(), e);
             // Don't rethrow - allow app to continue
         }
     }

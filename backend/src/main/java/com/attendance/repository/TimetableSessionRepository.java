@@ -47,6 +47,7 @@ public interface TimetableSessionRepository
     @Query("SELECT ts FROM TimetableSession ts " +
            "LEFT JOIN FETCH ts.subject " +
            "LEFT JOIN FETCH ts.staff " +
+           "LEFT JOIN FETCH ts.classEntity " +
            "WHERE ts.staff.id = :staffId AND ts.active = true")
     List<TimetableSession> findByStaffIdAndActiveTrue(@Param("staffId") Long staffId);
     
@@ -57,6 +58,7 @@ public interface TimetableSessionRepository
     @Query("SELECT ts FROM TimetableSession ts " +
            "LEFT JOIN FETCH ts.subject " +
            "LEFT JOIN FETCH ts.staff " +
+           "LEFT JOIN FETCH ts.classEntity " +
            "WHERE ts.staff.id = :staffId " +
            "AND LOWER(ts.dayOfWeek) = LOWER(:dayOfWeek) " +
            "AND ts.active = true " +
