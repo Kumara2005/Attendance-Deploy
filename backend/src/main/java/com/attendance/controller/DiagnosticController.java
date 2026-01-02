@@ -3,6 +3,8 @@ package com.attendance.controller;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
@@ -111,4 +113,85 @@ public class DiagnosticController {
         
         return ResponseEntity.ok(state);
     }
-}
+
+    /**
+     * GET /api/diagnostic/my-staff-info
+     * Shows information about the currently logged-in staff member
+     * No authentication required - accessible to all staff
+     */
+    @GetMapping("/my-staff-info")
+    @PreAuthorize("hasAnyRole('STAFF', 'ADMIN')")
+    public ResponseEntity<Map<String, Object>> getMyStaffInfo() {
+        try {
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            String username = auth.getName();
+            
+            Map<String, Object> result = new HashMap<>();
+            result.put("username", username);
+            result.put("authorities", auth.getAuthorities().toString());
+            
+            // Get user_id
+            Long userId = jdbcTemplate.queryForObject(
+                "SELECT id FROM users WHERE username = ?",
+                Long.class,
+                username
+            );
+            result.put("user_id", userId);
+            
+            // Get staff record
+            Map<String, Object> staffInfo = jdbcTemplate.queryForMap(
+                "SELECT id, staff_code, name, department, active, subject FROM staff WHERE user_id = ?",
+                userId
+            );
+            result.put("staff_info", staffInfo);
+            
+            Long staffId = ((Number) staffInfo.get("id")).longValue();
+            
+            // Count all sessions for this staff
+            Integer totalSessions = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM timetable_session WHERE staff_id = ? AND active = true",
+                Integer.class,
+                staffId
+            );
+            result.put("total_sessions_assigned", totalSessions);
+            
+            // Count Thursday sessions
+            Integer thursdaySessions = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM timetable_session WHERE staff_id = ? AND LOWER(day_of_week) = 'thursday' AND active = true",
+                Integer.class,
+                staffId
+            );
+            result.put("thursday_sessions", thursdaySessions);
+            
+            // Get all sessions for this staff with subject info
+            List<Map<String, Object>> sessions = jdbcTemplate.queryForList(
+                "SELECT ts.id, ts.day_of_week, ts.start_time, ts.end_time, ts.department, ts.semester, " +
+                "ts.section, ts.subject_id, sub.name as subject_name " +
+                "FROM timetable_session ts " +
+                "LEFT JOIN subject sub ON ts.subject_id = sub.id " +
+                "WHERE ts.staff_id = ? AND ts.active = true " +
+                "ORDER BY FIELD(ts.day_of_week, 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'), ts.start_time",
+                staffId
+            );
+            result.put("all_sessions", sessions);
+            
+            // Get staff_subjects mapping
+            List<Map<String, Object>> subjects = jdbcTemplate.queryForList(
+                "SELECT ss.subject_id, s.code, s.name, s.department, s.semester " +
+                "FROM staff_subjects ss " +
+                "JOIN subject s ON ss.subject_id = s.id " +
+                "WHERE ss.staff_id = ?",
+                staffId
+            );
+            result.put("assigned_subjects", subjects);
+            
+            return ResponseEntity.ok(result);
+            
+        } catch (Exception e) {
+            Map<String, Object> error = new HashMap<>();
+            error.put("error", e.getMessage());
+            error.put("type", e.getClass().getName());
+            error.put("stackTrace", e.getStackTrace()[0].toString());
+            return ResponseEntity.status(500).body(error);
+        }
+    }
