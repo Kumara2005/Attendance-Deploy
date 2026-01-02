@@ -12,7 +12,6 @@ export default defineConfig(({ mode }) => {
           '/api': {
             target: 'https://attendance-management-g2g6.onrender.com',
             changeOrigin: true,
-            secure: false,
             rewrite: (path) => path,
           }
         }
